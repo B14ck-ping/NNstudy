@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.0)
 
 project(neuralNet)
 
-add_library(foo STATIC matrix.cpp)
+add_library(foo STATIC matrix.cpp perceptron.cpp)
 			
 add_executable(main main.cpp)	
 
