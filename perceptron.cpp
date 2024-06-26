@@ -51,9 +51,9 @@ int perceptron::train(Matrix &input, Matrix &targetValue)
     Matrix whoT = this->who->getTranspose();
     Matrix hiddenErrors = Matrix::dot(whoT, outputErrors);
 
-    Matrix oneMatrix_10(10, 1, 1.0);
+    Matrix oneMatrix_10(this->outputNodes, 1, 1.0);
 
-    Matrix oneMatrix_100(100, 1, 1.0);
+    Matrix oneMatrix_100(this->hiddenNodes, 1, 1.0);
     
     {
         Matrix temp = outputErrors;
