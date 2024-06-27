@@ -177,8 +177,8 @@ void Matrix::operator*= (double scalar)
             // matrix[i][j] *= scalar;
         }
         if(col_even_idx != columns)
-            *(*(matrix + i)+(columns-1)) *= scalar;
-            // matrix[i][columns] *= scalar;
+            // *(*(matrix + i)+(columns-1)) *= scalar;
+            matrix[i][columns] *= scalar;
     }
 }
 
