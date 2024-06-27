@@ -9,6 +9,11 @@
 
 using namespace std;
 
+typedef struct{
+    Matrix *target;
+    Matrix *input;
+}   input_data_t;
+
 void printProgressBar(size_t itemCnt, size_t curr_item)
 {
     int curr_percent = (int)(((float)(curr_item+1)/(float)itemCnt)*100.0);
@@ -48,48 +53,50 @@ int main()
     string delimiter = ",";
 
     auto start = chrono::high_resolution_clock::now();
+    input_data_t inputs[trainDataSetSize] = {};
+    for (int i = 0; i < trainDataSetSize; i++){
+                    // get line
+        string sa;
+        // Read data from the file object and put it into a string.
+        if (!getline(train_file, sa))
+            break;
+
+        // Split it by comma and make input value matrix
+        size_t pos = sa.find(delimiter);
+        string token = sa.substr(0, pos);
+        sa.erase(0, pos + delimiter.length());
+        int value = stoi(token);
+        inputs[i].input = new Matrix(784, 1, 0);
+        size_t cnt = 0;
+        while ((pos = sa.find(delimiter)) != std::string::npos) {
+            token = sa.substr(0, pos);
+            sa.erase(0, pos + delimiter.length());
+            double buf = stod(token);
+            buf = ((buf/255.0)*0.99) + 0.01;
+            (*inputs[i].input)[cnt][0] = buf;
+            cnt++;
+        }
+
+        // Let's make target value matrix
+        inputs[i].target = new Matrix(10, 1, 0.01);
+        (*inputs[i].target)[value][0] = 0.99;
+    }
+    train_file.close(); 
 
     cout << "Training neural net:" << endl;
     int epochs = 6;
     for (int ep = 0; ep < epochs; ep++){
         cout << "Start epoch "<< ep+1 << endl << endl;
+        auto epoch_start = chrono::high_resolution_clock::now();
         for (int i = 0; i < trainDataSetSize; i++){
             printProgressBar(trainDataSetSize, i);
-            
-            // get line
-            string sa;
-            // Read data from the file object and put it into a string.
-            if (!getline(train_file, sa))
-                break;
-
-            // Split it by comma and make input value matrix
-            size_t pos = sa.find(delimiter);
-            string token = sa.substr(0, pos);
-            sa.erase(0, pos + delimiter.length());
-            int value = stoi(token);
-            Matrix inputValues(784, 1, 0);
-            size_t cnt = 0;
-            while ((pos = sa.find(delimiter)) != std::string::npos) {
-                token = sa.substr(0, pos);
-                sa.erase(0, pos + delimiter.length());
-                inputValues[cnt][0] = stod(token);
-                inputValues[cnt][0] = ((inputValues[cnt][0]/255.0)*0.99) + 0.01;
-                cnt++;
-            }
-
-            // cout << "total : " << cnt + 1 << endl;
-
-            // Let's make target value matrix
-            Matrix targetValues(10, 1, 0.01);
-            targetValues[value][0] = 0.99;
-
             // Train matrix
-            MNISTperc.train(inputValues, targetValues);
+            MNISTperc.train(*inputs[i].input, *inputs[i].target);
         }
-        train_file.clear();
-        train_file.seekg(0);
+        auto epoch_finish = chrono::high_resolution_clock::now();
+        auto epochduration = chrono::duration_cast<chrono::microseconds>(epoch_finish - epoch_start);
+        cout << "Epoch complete in " << epochduration.count() << " microsec" << endl << endl;
     }
-    train_file.close(); 
 
     auto stop = chrono::high_resolution_clock::now();
     auto duration = chrono::duration_cast<chrono::microseconds>(stop - start);
