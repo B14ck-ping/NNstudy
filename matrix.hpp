@@ -8,15 +8,15 @@ class Matrix
 private:
     unsigned int rows;
     unsigned int columns;
-    double **matrix;
+    float **matrix;
 public:
     explicit Matrix(unsigned int rows, unsigned int columns);
-    explicit Matrix(unsigned int rows, unsigned int columns, double value);
+    explicit Matrix(unsigned int rows, unsigned int columns, float value);
     Matrix(const Matrix &);
     ~Matrix();
     static Matrix dot(Matrix&, Matrix&);
-    Matrix operator* (double);
-    void operator*= (double);
+    Matrix operator* (float);
+    void operator*= (float);
     Matrix operator* (Matrix&);
     void operator*= (Matrix&);
     Matrix operator+ (Matrix&);
@@ -24,8 +24,8 @@ public:
     Matrix operator- (Matrix&);
     void operator-= (Matrix&);
     Matrix operator= (Matrix&);
-    double* operator[] (unsigned int);
-    double getDeterminant() const;
+    float* operator[] (unsigned int);
+    float getDeterminant() const;
     unsigned int get_rows()
     {return rows;}
     unsigned int get_columns()
