@@ -82,7 +82,7 @@ Matrix Matrix::dot(Matrix &mtx1, Matrix &mtx2)
     //     }
     // }
 
-    int mtx1_col_even_idx = mtx1_col - (mtx1_col - 1)%4;
+    unsigned int mtx1_col_even_idx = mtx1_col - (mtx1_col - 1)%4;
     if(mtx1_col_even_idx >= 4){
         for (unsigned int k = 0; k < l_output_columns; k++){
             for (unsigned int i = 0; i < mtx1_rows; i++){
@@ -108,7 +108,7 @@ Matrix Matrix::dot(Matrix &mtx1, Matrix &mtx2)
             }
         }
     } else if(mtx1_col_even_idx == 1){
-        unsigned out_mtx_cols_even_idx = l_output_columns - (l_output_columns - 1)%4;
+        unsigned out_mtx_cols_even_idx = l_output_columns - l_output_columns%4;
         for (unsigned int k = 0; k < mtx1_rows; k++){
             auto second_vector = _mm_broadcast_ss(&mtx1[k][0]);
             for (unsigned int i = 0; i < out_mtx_cols_even_idx ; i+=4){
@@ -161,7 +161,7 @@ Matrix Matrix::operator* (float scalar)
 void Matrix::operator*= (float scalar)
 {
 
-    int col_even_idx = columns - (columns - 1)%4;
+    unsigned int col_even_idx = columns - columns%4;
 
     for (unsigned int i = 0; i < rows; i++){
         for(unsigned int j = 0; j < col_even_idx; j+=4){
@@ -174,8 +174,8 @@ void Matrix::operator*= (float scalar)
             // matrix[i][j] *= scalar;
         }
         if(col_even_idx != columns)
-            *(*(matrix + i)+(columns-1)) *= scalar;
-            // matrix[i][columns] *= scalar;
+            for (unsigned int k = col_even_idx; k < columns; k++)
+            matrix[i][k] *= scalar;
     }
 }
 
@@ -195,7 +195,7 @@ Matrix Matrix::operator* (Matrix &mtrx)
 
 void Matrix::operator*= (Matrix &mtrx)
 {
-    int col_even_idx = columns - (columns - 1)%4;
+    unsigned int col_even_idx = columns - columns%4;
 
     for (unsigned int i = 0; i < rows; i++){
         for(unsigned int j = 0; j < col_even_idx; j+=4){
@@ -208,7 +208,8 @@ void Matrix::operator*= (Matrix &mtrx)
             // matrix[i][j] *= mtrx.matrix[i][j];
         }
         if(col_even_idx != columns)
-            matrix[i][columns] *= mtrx.matrix[i][columns];
+            for (unsigned int k = col_even_idx; k < columns; k++)
+                matrix[i][k] *= mtrx.matrix[i][k];
     }  
 }
 
@@ -219,7 +220,7 @@ Matrix Matrix::operator+ (Matrix &mtrx)
 
 void Matrix::operator+= (Matrix &m2)
 {
-    int col_even_idx = columns - (columns - 1)%4;
+    unsigned int col_even_idx = columns - columns%4;
 
     for (unsigned int i = 0; i < rows; i++){
         for(unsigned int j = 0; j < col_even_idx; j+=4){
@@ -233,7 +234,9 @@ void Matrix::operator+= (Matrix &m2)
             // matrix[i][j] += m2.matrix[i][j];
         }
         if(col_even_idx != columns)
-            *(*(matrix + i) + (columns-1)) += *(*(m2.matrix + i) + (columns-1));
+            for (unsigned int k = col_even_idx; k < columns; k++)
+                matrix[i][k] *= m2.matrix[i][k];
+
     }
 }
 
