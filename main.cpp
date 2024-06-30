@@ -54,7 +54,7 @@ int main()
 
     auto start = chrono::high_resolution_clock::now();
     input_data_t inputs[trainDataSetSize] = {};
-    for (int i = 0; i < trainDataSetSize; i++){
+    for (size_t i = 0; i < trainDataSetSize; i++){
                     // get line
         string sa;
         // Read data from the file object and put it into a string.
@@ -82,13 +82,16 @@ int main()
         (*inputs[i].target)[value][0] = 0.99;
     }
     train_file.close(); 
+    auto stopfile = chrono::high_resolution_clock::now();
+    auto durationfile = chrono::duration_cast<chrono::microseconds>(stopfile - start);
+    cout << "Trainig data is loaded from file in " << durationfile.count() << " microsec" << endl;
 
     cout << "Training neural net:" << endl;
-    int epochs = 6;
+    int epochs = 5;
     for (int ep = 0; ep < epochs; ep++){
         cout << "Start epoch "<< ep+1 << endl << endl;
         auto epoch_start = chrono::high_resolution_clock::now();
-        for (int i = 0; i < trainDataSetSize; i++){
+        for (size_t i = 0; i < trainDataSetSize; i++){
             printProgressBar(trainDataSetSize, i);
             // Train matrix
             MNISTperc.train(*inputs[i].input, *inputs[i].target);
@@ -118,7 +121,7 @@ int main()
    
     cout << "Test neural net:" << endl << endl;
     size_t goodAns = 0, badAns = 0;
-    for (int i = 0; i < testDataSetSize; i++){
+    for (size_t i = 0; i < testDataSetSize; i++){
         printProgressBar(testDataSetSize, i);
         
         // get line
