@@ -6,59 +6,24 @@
 
 Matrix::Matrix(unsigned int a_rows, unsigned int a_columns) : rows(a_rows), columns(a_columns)
 {
-    this->matrix = new float*[this->rows];
-
-    // this->matrix = new(this->rows*(float*), std::align_val_t(32));
-
-    for (unsigned int i = 0; i < this->rows; i++){
-        // this->matrix[i] = new float[this->columns];
-        this->matrix[i] = (float*)aligned_alloc(16, this->columns*sizeof(float));
-    }
+    matrix = (float*)malloc(rows*columns*sizeof(float));
 }
 
 Matrix::Matrix(unsigned int a_rows, unsigned int a_columns, float value) : rows(a_rows), columns(a_columns)
 {
-    matrix = new float*[rows];
-
-    for (unsigned int i = 0; i < rows; i++){
-        // matrix[i] = new float[columns];
-        this->matrix[i] = (float*)aligned_alloc(16, this->columns*sizeof(float));
-    }
-
-    for (unsigned int i = 0; i < rows; i++){
-        for(unsigned int j = 0; j < columns; j++){
-            matrix[i][j] = value;
-        }
-    }
+    matrix = (float*)malloc(rows*columns*sizeof(float));
+    std::fill(matrix, matrix + rows*columns, value);
 }
 
 Matrix::Matrix(const Matrix &mtx) : rows(mtx.rows), columns(mtx.columns)
 {
-    matrix = new float*[rows];
-
-    for (unsigned int i = 0; i < rows; i++){
-        // matrix[i] = new float[columns];
-        this->matrix[i] = (float*)aligned_alloc(16, this->columns*sizeof(float));
-    }
-
-    for (unsigned int i = 0; i < rows; i++){
-        std::memcpy( matrix[i], mtx.matrix[i], sizeof(float)*columns);
-    }
-
-    // for (unsigned int i = 0; i < rows; i++){
-    //     for(unsigned int j = 0; j < columns; j++){
-    //         matrix[i][j] = mtx.matrix[i][j];
-    //     }
-    // }
+    matrix = (float*)malloc(rows*columns*sizeof(float));
+    std::memcpy( matrix, mtx.matrix, sizeof(float)*columns*rows);
 }
 
 Matrix::~Matrix()
 {
-    for (unsigned int i = 0; i < rows; i++){
-        // delete [] matrix[i];
-        free(matrix[i]);
-    }
-    delete [] matrix;
+    free(matrix);
 }
 
 Matrix Matrix::dot(Matrix &mtx1, Matrix &mtx2)
@@ -89,22 +54,22 @@ Matrix Matrix::dot(Matrix &mtx1, Matrix &mtx2)
                 float l_temp = 0.0;
                 __m128 buffer_vector = _mm_broadcast_ss(&l_temp);
                 for(unsigned int j = 0; j < mtx1_col_even_idx-4; j+=4){
-                    auto first_vector = _mm_load_ps(&mtx1[i][j]);
-                    auto second_vector = _mm_load_ps(&mtx_2_t[k][j]);
+                    auto first_vector = _mm_loadu_ps(&mtx1[i][j]);
+                    auto second_vector = _mm_loadu_ps(&mtx_2_t[k][j]);
 
                     auto output_vector_1 = _mm_mul_ps(first_vector, second_vector);//_mm_dp_ps(first_vector,second_vector,0xF1);
 
                     buffer_vector = _mm_add_ps(output_vector_1, buffer_vector);
                 }
                 float a[4] = {};
-                _mm_store_ps(&a[0], buffer_vector);
+                _mm_storeu_ps(&a[0], buffer_vector);
                 l_temp +=  a[0] + a[1] + a[2] + a[3];
                 if (mtx1_col_even_idx != mtx1_col){
-                    for (int j = mtx1_col_even_idx; j < mtx1_col; j++)
+                    for (unsigned int j = mtx1_col_even_idx; j < mtx1_col; j++)
                         l_temp += mtx1[i][j] * mtx2[j][k];
                 }
 
-                l_matrix.matrix[i][k] = l_temp;
+                l_matrix[i][k] = l_temp;
             }
         }
     } else if(mtx1_col_even_idx == 1){
@@ -112,13 +77,13 @@ Matrix Matrix::dot(Matrix &mtx1, Matrix &mtx2)
         for (unsigned int k = 0; k < mtx1_rows; k++){
             auto second_vector = _mm_broadcast_ss(&mtx1[k][0]);
             for (unsigned int i = 0; i < out_mtx_cols_even_idx ; i+=4){
-                auto first_vector = _mm_load_ps(&mtx2[0][i]);
+                auto first_vector = _mm_loadu_ps(&mtx2[0][i]);
                 auto output_vector_2 = _mm_mul_ps(first_vector, second_vector);
-                _mm_store_ps(&l_matrix.matrix[k][i], output_vector_2);
-                // l_matrix.matrix[k][i] = mtx1[k][0]*mtx2[0][i];
+                _mm_storeu_ps(&l_matrix[k][i], output_vector_2);
+                // l_matrix[k][i] = mtx1[k][0]*mtx2[0][i];
             }
             if (out_mtx_cols_even_idx != l_output_columns)
-                l_matrix.matrix[k][l_output_columns-1] = mtx1[k][0]*mtx2[0][out_mtx_cols_even_idx-1];
+                l_matrix[k][l_output_columns-1] = mtx1[k][0]*mtx2[0][out_mtx_cols_even_idx-1];
         }
     } else {
         for (unsigned int k = 0; k < l_output_columns; k++){
@@ -127,7 +92,7 @@ Matrix Matrix::dot(Matrix &mtx1, Matrix &mtx2)
                 for(unsigned int j = 0; j < mtx1_col; j++){
                     l_temp += mtx1[i][j] * mtx2[j][k];
                 }
-                *(*(l_matrix.matrix + i) + k) = l_temp;
+                l_matrix[i][k] = l_temp;
             }
         }
 
@@ -139,20 +104,20 @@ Matrix Matrix::operator* (float scalar)
 {
     Matrix temp(*this);
 
-    int col_even_idx = temp.columns - (temp.columns - 1)%4;
+    unsigned int col_even_idx = temp.columns - (temp.columns - 1)%4;
 
     for (unsigned int i = 0; i < temp.rows; i++){
         for(unsigned int j = 0; j < col_even_idx; j+=4){
-            auto first_vector = _mm_load_ps(*(temp.matrix +i)+j);
+            auto first_vector = _mm_loadu_ps(&temp[i][j]);
             auto second_vector = _mm_broadcast_ss(&scalar);
 
             auto sum_vector = _mm_mul_ps(first_vector, second_vector);
 
-            _mm_store_ps(*(temp.matrix +i)+j, sum_vector);
+            _mm_storeu_ps(&temp[i][j], sum_vector);
             // temp.matrix[i][j] *= scalar;
         }
         if(col_even_idx != columns)
-            *(*(temp.matrix + i)+(columns-1)) *= scalar;
+            temp[i][columns-1] *= scalar;
     }
 
     return temp;
@@ -165,17 +130,17 @@ void Matrix::operator*= (float scalar)
 
     for (unsigned int i = 0; i < rows; i++){
         for(unsigned int j = 0; j < col_even_idx; j+=4){
-            auto first_vector = _mm_load_ps(*(matrix +i)+j);
+            auto first_vector = _mm_loadu_ps(&matrix[i*columns+j]);
             auto second_vector = _mm_broadcast_ss(&scalar);
 
             auto sum_vector = _mm_mul_ps(first_vector, second_vector);
 
-            _mm_store_ps(*(matrix +i)+j, sum_vector);
-            // matrix[i][j] *= scalar;
+            _mm_storeu_ps(&matrix[i*columns+j], sum_vector);
+            // matrix[i*columns+j] *= scalar;
         }
         if(col_even_idx != columns)
             for (unsigned int k = col_even_idx; k < columns; k++)
-            matrix[i][k] *= scalar;
+            matrix[i*columns + k] *= scalar;
     }
 }
 
@@ -186,7 +151,7 @@ Matrix Matrix::operator* (Matrix &mtrx)
     for (unsigned int i = 0; i < rows; i++){
         for(unsigned int j = 0; j < columns; j++){
 
-            matrix[i][j] *= mtrx.matrix[i][j];
+            matrix[i*columns + j] *= mtrx[i][j];
         }
     }
 
@@ -199,17 +164,17 @@ void Matrix::operator*= (Matrix &mtrx)
 
     for (unsigned int i = 0; i < rows; i++){
         for(unsigned int j = 0; j < col_even_idx; j+=4){
-            auto first_vector = _mm_load_ps(&matrix[i][j]);
-            auto second_vector = _mm_load_ps(&mtrx[i][j]);
+            auto first_vector = _mm_loadu_ps(&matrix[i*columns+j]);
+            auto second_vector = _mm_loadu_ps(&mtrx[i][j]);
 
             auto sum_vector = _mm_mul_ps(first_vector, second_vector);
 
-            _mm_store_ps(&matrix[i][j], sum_vector);
+            _mm_storeu_ps(&matrix[i*columns+j], sum_vector);
             // matrix[i][j] *= mtrx.matrix[i][j];
         }
         if(col_even_idx != columns)
             for (unsigned int k = col_even_idx; k < columns; k++)
-                matrix[i][k] *= mtrx.matrix[i][k];
+                matrix[i*columns+k] *= mtrx[i][k];
     }  
 }
 
@@ -224,18 +189,18 @@ void Matrix::operator+= (Matrix &m2)
 
     for (unsigned int i = 0; i < rows; i++){
         for(unsigned int j = 0; j < col_even_idx; j+=4){
-            auto first_vector = _mm_load_ps(*(matrix + i) + j);
-            auto second_vector = _mm_load_ps(*(m2.matrix + i) + j);
+            auto first_vector = _mm_loadu_ps(&matrix[i*columns+j]);
+            auto second_vector = _mm_loadu_ps(&m2.matrix[i*columns+j]);
 
             auto sum_vector = _mm_add_ps(first_vector, second_vector);
 
-            _mm_store_ps(*(matrix + i) + j, sum_vector);
+            _mm_storeu_ps(&matrix[i*columns + j], sum_vector);
 
-            // matrix[i][j] += m2.matrix[i][j];
+            // matrix[i*columns + j] += m2.matrix[i*columns + j];
         }
         if(col_even_idx != columns)
             for (unsigned int k = col_even_idx; k < columns; k++)
-                matrix[i][k] *= m2.matrix[i][k];
+                matrix[i*columns+k] += m2[i][k];
 
     }
 }
@@ -249,7 +214,7 @@ void Matrix::operator-= (Matrix &m2)
 {
     for (unsigned int i = 0; i < rows; i++){
         for(unsigned int j = 0; j < columns; j++){
-            matrix[i][j] -= m2.matrix[i][j];
+            matrix[i*columns+j] -= m2[i][j];
         }
     }
 }
@@ -259,29 +224,15 @@ Matrix Matrix::operator= (Matrix &m2)
     this->rows = m2.rows;
     this->columns = m2.columns;
 
-    this->matrix = new float*[this->rows];
-
-    for (unsigned int i = 0; i < this->rows; i++){
-        // this->matrix[i] = new float[this->columns];
-        this->matrix[i] = (float*)aligned_alloc(16, this->columns*sizeof(float));
-    }
-
-    // for (unsigned int i = 0; i < this->rows; i++){
-    //     for(unsigned int j = 0; j < this->columns; j++){
-    //         this->matrix[i][j] = m2.matrix[i][j];
-    //     }
-    // }
-
-    for (unsigned int i = 0; i < rows; i++){
-        std::memcpy( matrix[i], m2.matrix[i], sizeof(float)*columns);
-    }
+    matrix = (float*)malloc(rows*columns*sizeof(float));
+    std::memcpy( matrix, m2.matrix, sizeof(float)*columns*rows);
 
     return *this;
 }
 
 float* Matrix::operator[] (unsigned int idx)
 {
-    return matrix[idx];
+    return matrix + idx*columns;
 }
 
 float Matrix::getDeterminant() const
@@ -295,7 +246,7 @@ Matrix Matrix::getTranpose() const
 
     for (unsigned int i = 0; i < columns; i++){
         for(unsigned int j = 0; j < rows; j++){
-            new_mtx[i][j] = matrix[j][i];
+            new_mtx[i][j] = matrix[j*columns+i];
         }
     }
 
@@ -304,26 +255,17 @@ Matrix Matrix::getTranpose() const
 
 void Matrix::transpose()
 {
-    float **t_matrix = matrix;
+    float *t_matrix = matrix;
 
-    matrix = new float*[columns];
-
-    for (unsigned int i = 0; i < columns; i++){
-        // matrix[i] = new float[rows];
-        this->matrix[i] = (float*)aligned_alloc(16, this->rows*sizeof(float));
-    }
+    matrix = (float*)malloc(columns*rows*sizeof(float));
 
     for (unsigned int i = 0; i < columns; i++){
         for(unsigned int j = 0; j < rows; j++){
-            matrix[i][j] = t_matrix[j][i];
+            matrix[i*rows+j] = t_matrix[j*columns+i];
         }
     }
 
-    for (unsigned int i = 0; i < rows; i++){
-        // delete [] t_matrix[i];
-        free(t_matrix[i]);
-    }
-    delete [] t_matrix;
+    free(t_matrix);
 
     unsigned int temp = rows;
     rows = columns;
