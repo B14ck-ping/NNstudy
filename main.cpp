@@ -5,7 +5,7 @@
 #include <unistd.h>      
 #include <iomanip>
 #include <chrono>
-
+#include "processor.hpp"
 
 using namespace std;
 
@@ -35,6 +35,9 @@ int main()
 {
     size_t trainDataSetSize = 60000;
     size_t testDataSetSize = 1000;
+    int epochs = 6;
+
+    // processor::Instance();
 
     perceptron MNISTperc(784, 300, 10);
 
@@ -87,7 +90,6 @@ int main()
     cout << "Trainig data is loaded from file in " << durationfile.count() << " microsec" << endl;
 
     cout << "Training neural net:" << endl;
-    int epochs = 5;
     for (int ep = 0; ep < epochs; ep++){
         cout << "Start epoch "<< ep+1 << endl << endl;
         auto epoch_start = chrono::high_resolution_clock::now();

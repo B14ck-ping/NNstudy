@@ -8,7 +8,7 @@ class Matrix
 private:
     unsigned int rows;
     unsigned int columns;
-    float **matrix;
+    float *matrix;
 public:
     explicit Matrix(unsigned int rows, unsigned int columns);
     explicit Matrix(unsigned int rows, unsigned int columns, float value);
