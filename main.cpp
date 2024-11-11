@@ -1,5 +1,6 @@
 #include <iostream>
 #include <fstream>
+
 #include <string>
 #include "perceptron.hpp"
 #include <unistd.h>      
@@ -8,7 +9,6 @@
 #include "processor.hpp"
 
 using namespace std;
-
 typedef struct{
     Matrix *target;
     Matrix *input;
@@ -17,7 +17,8 @@ typedef struct{
 void printProgressBar(size_t itemCnt, size_t curr_item)
 {
     int curr_percent = (int)(((float)(curr_item+1)/(float)itemCnt)*100.0);
-    cout << "\x1b[2K" << "\x1b[1A" << "\x1b[2K" << "\r";
+    // cout << "\x1b[2K" << "\x1b[1A" << "\x1b[2K" << "\r";
+    cout << "\r";
     cout << "[";
     for (int j = 0; j < curr_percent; j++){
         cout << "=";
@@ -27,15 +28,15 @@ void printProgressBar(size_t itemCnt, size_t curr_item)
         cout << "-";
     }
     
-    cout << "]" << curr_item+1 << "/" << itemCnt << endl;
+    cout << "]" << curr_item+1 << "/" << itemCnt;// << endl;
 }
 
 
 int main()
 {
-    size_t trainDataSetSize = 60000;
-    size_t testDataSetSize = 1000;
-    int epochs = 6;
+    const size_t trainDataSetSize = 60000;
+    const size_t testDataSetSize = 1000;
+    int epochs = 3;
 
     // processor::Instance();
 
@@ -98,6 +99,7 @@ int main()
             // Train matrix
             MNISTperc.train(*inputs[i].input, *inputs[i].target);
         }
+        cout << endl;
         auto epoch_finish = chrono::high_resolution_clock::now();
         auto epochduration = chrono::duration_cast<chrono::microseconds>(epoch_finish - epoch_start);
         cout << "Epoch complete in " << epochduration.count() << " microsec" << endl << endl;
@@ -167,6 +169,7 @@ int main()
         else
             badAns++;
     }
+    cout << endl;
 
     stop = chrono::high_resolution_clock::now();
     duration = chrono::duration_cast<chrono::microseconds>(stop - start);
