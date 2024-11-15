@@ -2,31 +2,40 @@
 #include "activationFunctions.hpp"
 
 
+static bool using_cuda = true;
+
+
 perceptron::perceptron(unsigned inNodes_cnt, unsigned hidNodes_cnt, unsigned outNodes_cnt)
 {
     this->inputNodes = inNodes_cnt;
-    this->hiddenNodes = hidNodes_cnt;
-    this->outputNodes = outNodes_cnt;
+        this->hiddenNodes = hidNodes_cnt;
+        this->outputNodes = outNodes_cnt;
+    if (!using_cuda){
+        Matrix b_wih(hidNodes_cnt, inNodes_cnt), b_who(outNodes_cnt, hidNodes_cnt);
+        // Set random weights to wih and who
+        for (unsigned int i = 0; i < b_wih.get_rows(); i++){
+            for(unsigned int j = 0; j < b_wih.get_columns(); j++){
+                b_wih[i][j] = (double)(rand()%100)/100 - 0.5;
+            }
+        }   
 
-    this->wih = new Matrix(hidNodes_cnt, inNodes_cnt);
-    this->who = new Matrix(outNodes_cnt, hidNodes_cnt);
-
-    this->inputVector = new Matrix(inNodes_cnt, 1);
-    this->hiddenVector = new Matrix(hidNodes_cnt, 1);
-    this->outputVector = new Matrix(outNodes_cnt, 1);
-
-    // Set random weights to wih and who
-    for (unsigned int i = 0; i < this->wih->get_rows(); i++){
-        for(unsigned int j = 0; j < this->wih->get_columns(); j++){
-            (*this->wih)[i][j] = (double)(rand()%100)/100 - 0.5;
+        for (unsigned int i = 0; i < b_who.get_rows(); i++){
+            for(unsigned int j = 0; j < b_who.get_columns(); j++){
+                b_who[i][j] = (double)(rand()%100)/100.0 -0.5;
+            }
         }
-    }   
 
-    for (unsigned int i = 0; i < this->who->get_rows(); i++){
-        for(unsigned int j = 0; j < this->who->get_columns(); j++){
-            (*this->who)[i][j] = (double)(rand()%100)/100.0 -0.5;
-        }
-    }  
+        this->wih = new MatrixCUDA(b_wih);
+        this->who = new MatrixCUDA(b_who);
+
+        this->inputVector = new MatrixCUDA(inNodes_cnt, 1);
+        this->hiddenVector = new MatrixCUDA(hidNodes_cnt, 1);
+        this->outputVector = new MatrixCUDA(outNodes_cnt, 1);
+
+    } else {
+
+    }
+      
 }
 
 perceptron::~perceptron()
@@ -40,41 +49,42 @@ perceptron::~perceptron()
 
 int perceptron::train(Matrix &input, Matrix &targetValue)
 {
-    Matrix hiddenInputs = Matrix::dot(*this->wih, input); 
-    Matrix hiddenOutputs = actFunc::applySigmoid(hiddenInputs);
+    MatrixCUDA _input(input);
+    MatrixCUDA hiddenInputs = MatrixCUDA::dot(*this->wih, _input); 
+    MatrixCUDA hiddenOutputs = MatrixCUDA::applySigmoid(hiddenInputs);
 
-    Matrix outputInputs = Matrix::dot(*this->who, hiddenOutputs); 
-    Matrix outputOutputs = actFunc::applySigmoid(outputInputs);
+    MatrixCUDA outputInputs = MatrixCUDA::dot(*this->who, hiddenOutputs); 
+    MatrixCUDA outputOutputs = MatrixCUDA::applySigmoid(outputInputs);
 
-    Matrix outputErrors = targetValue;
+    MatrixCUDA outputErrors(targetValue);
     outputErrors -= outputOutputs;
-    Matrix whoT = this->who->getTranspose();
-    Matrix hiddenErrors = Matrix::dot(whoT, outputErrors);
+    MatrixCUDA whoT = this->who->getTranspose();
+    MatrixCUDA hiddenErrors = MatrixCUDA::dot(whoT, outputErrors);
 
-    Matrix oneMatrix_10(this->outputNodes, 1, 1.0);
+    MatrixCUDA oneMatrix_10(this->outputNodes, 1, 1.0);
 
-    Matrix oneMatrix_100(this->hiddenNodes, 1, 1.0);
+    MatrixCUDA oneMatrix_100(this->hiddenNodes, 1, 1.0);
     
     {
-        Matrix temp = outputErrors;
+        MatrixCUDA temp = outputErrors;
         temp *= outputOutputs;
-        Matrix temp2 = oneMatrix_10;
+        MatrixCUDA temp2 = oneMatrix_10;
         temp2 -= outputOutputs;
-        Matrix hiddenOutputsT = hiddenOutputs.getTranspose();
+        MatrixCUDA hiddenOutputsT = hiddenOutputs.getTranspose();
         temp *= temp2;
-        Matrix w_delta = Matrix::dot(temp, hiddenOutputsT);
+        MatrixCUDA w_delta = MatrixCUDA::dot(temp, hiddenOutputsT);
         w_delta *= 0.1;
 
         *this->who += w_delta;
     }
 
-    Matrix temp = hiddenErrors;
+    MatrixCUDA temp = hiddenErrors;
     temp *= hiddenOutputs;
-    Matrix temp2 = oneMatrix_100;
+    MatrixCUDA temp2 = oneMatrix_100;
     temp2 -= hiddenOutputs;
-    Matrix inputsT = input.getTranspose();
+    MatrixCUDA inputsT = _input.getTranspose();
     temp *= temp2;
-    Matrix w_delta = Matrix::dot(temp, inputsT);
+    MatrixCUDA w_delta = MatrixCUDA::dot(temp, inputsT);
     w_delta *= 0.1;
 
     *this->wih += w_delta;
@@ -84,11 +94,13 @@ int perceptron::train(Matrix &input, Matrix &targetValue)
 
 Matrix perceptron::queue(Matrix &input)
 {
-    Matrix hiddenInputs = Matrix::dot(*this->wih, input); 
-    Matrix hiddenOutputs = actFunc::applySigmoid(hiddenInputs);
+    MatrixCUDA _input(input);
+    MatrixCUDA hiddenInputs = MatrixCUDA::dot(*this->wih, _input); 
+    MatrixCUDA hiddenOutputs = MatrixCUDA::applySigmoid(hiddenInputs);
 
-    Matrix outputInputs = Matrix::dot(*this->who, hiddenOutputs); 
-    Matrix outputOutputs = actFunc::applySigmoid(outputInputs);
+    MatrixCUDA outputInputs = MatrixCUDA::dot(*this->who, hiddenOutputs); 
+    MatrixCUDA outputOutputs = MatrixCUDA::applySigmoid(outputInputs);
 
-    return outputOutputs;
+    Matrix _output_outputs = outputOutputs.getHost_matrix();
+    return _output_outputs;
 }

@@ -3,10 +3,10 @@
 
 #include <string>
 #include "perceptron.hpp"
-#include <unistd.h>      
+// #include <unistd.h>      
 #include <iomanip>
 #include <chrono>
-#include "processor.hpp"
+// #include "processor.hpp"
 
 using namespace std;
 typedef struct{

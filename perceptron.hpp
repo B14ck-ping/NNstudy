@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include "matrix.hpp"
+#include "matrixCUDA.cuh"
 #include "activationFunctions.hpp"
 
 
@@ -13,7 +14,7 @@ private:
     unsigned hiddenNodes;
     unsigned outputNodes;
 
-    Matrix *wih = NULL, *who = NULL, *inputVector = NULL, *hiddenVector = NULL, *outputVector = NULL;
+    MatrixCUDA *wih = NULL, *who = NULL, *inputVector = NULL, *hiddenVector = NULL, *outputVector = NULL;
 
 public:
     explicit perceptron(unsigned inNodes_cnt, unsigned hidNodes_cnt, unsigned outNodes_cnt);

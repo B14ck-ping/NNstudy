@@ -20,7 +20,7 @@ class actFunc
 
         for (unsigned int i = 0; i < in.get_rows(); i++){
             for(unsigned int j = 0; j < in.get_columns(); j++){
-                output_matrix[i][j] = 1.0/(1.0 + exp((-1.0)*in[i][j]));
+                output_matrix[i][j] = 1.0/(1.0 + expf((-1.0)*in[i][j]));
             }
         }  
         return output_matrix;
