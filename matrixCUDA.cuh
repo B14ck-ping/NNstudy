@@ -1,5 +1,6 @@
 #pragma once
 #include <iostream>
+#include "matrix.hpp"
 
 using namespace std;
 
@@ -12,7 +13,7 @@ private:
 public:
     explicit MatrixCUDA(unsigned int rows, unsigned int columns);
     explicit MatrixCUDA(unsigned int rows, unsigned int columns, float value);
-    MatrixCUDA(const MatrixCUDA &);
+    MatrixCUDA(Matrix &);
     ~MatrixCUDA();
     static MatrixCUDA dot(MatrixCUDA&, MatrixCUDA&);
     MatrixCUDA operator* (float);
@@ -35,4 +36,7 @@ public:
     MatrixCUDA getTranspose();
     void insertLine();
     void insertColumn();
+
+    static MatrixCUDA applySigmoid(MatrixCUDA &mtx);
+    Matrix getHost_matrix();
 };

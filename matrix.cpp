@@ -1,5 +1,5 @@
 #include "matrix.hpp"
-#include <x86intrin.h>
+#include <immintrin.h>
 #include <cstdint>
 #include <cstring>
 #include <new>
@@ -180,7 +180,7 @@ void Matrix::operator*= (Matrix &mtrx)
 
 Matrix Matrix::operator+ (Matrix &mtrx)
 {
-
+    return Matrix(0,0);
 }
 
 void Matrix::operator+= (Matrix &m2)
@@ -207,7 +207,7 @@ void Matrix::operator+= (Matrix &m2)
 
 Matrix Matrix::operator- (Matrix&)
 {
-
+    return Matrix(0,0);
 }
 
 void Matrix::operator-= (Matrix &m2)
@@ -237,7 +237,7 @@ float* Matrix::operator[] (unsigned int idx)
 
 float Matrix::getDeterminant() const
 {
-
+    return 0.0;
 }
 
 Matrix Matrix::getTranpose() const
