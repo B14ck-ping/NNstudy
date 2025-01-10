@@ -1,6 +1,7 @@
 #pragma once
 #include <iostream>
-#include "matrix.hpp"
+#include "cuda_runtime.h"
+#include "cuda.h"
 
 using namespace std;
 
@@ -10,10 +11,12 @@ private:
     unsigned int rows;
     unsigned int columns;
     float *matrix;
+
 public:
     explicit MatrixCUDA(unsigned int rows, unsigned int columns);
     explicit MatrixCUDA(unsigned int rows, unsigned int columns, float value);
-    MatrixCUDA(Matrix &);
+    MatrixCUDA(MatrixCUDA &);
+    MatrixCUDA(float *mtx_arr, unsigned int rows, unsigned int columns);
     ~MatrixCUDA();
     static MatrixCUDA dot(MatrixCUDA&, MatrixCUDA&);
     MatrixCUDA operator* (float);
@@ -25,7 +28,7 @@ public:
     MatrixCUDA operator- (MatrixCUDA&);
     void operator-= (MatrixCUDA&);
     MatrixCUDA operator= (MatrixCUDA&);
-    float* operator[] (unsigned int);
+    // float* operator[] (unsigned int);
     float getDeterminant() const;
     unsigned int get_rows()
     {return rows;}
@@ -37,6 +40,6 @@ public:
     void insertLine();
     void insertColumn();
 
-    static MatrixCUDA applySigmoid(MatrixCUDA &mtx);
-    Matrix getHost_matrix();
+    void applySigmoid();
+    float* getHost_matrix();
 };

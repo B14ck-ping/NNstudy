@@ -13,6 +13,7 @@ public:
     explicit Matrix(unsigned int rows, unsigned int columns);
     explicit Matrix(unsigned int rows, unsigned int columns, float value);
     Matrix(const Matrix &);
+    Matrix(float *mtx_arr, unsigned int rows, unsigned int columns);
     ~Matrix();
     static Matrix dot(Matrix&, Matrix&);
     Matrix operator* (float);
@@ -35,5 +36,6 @@ public:
     Matrix getTranspose();
     void insertLine();
     void insertColumn();
+    float* getMatrixDeepCopyArr();
 };
 

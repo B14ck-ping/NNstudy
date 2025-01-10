@@ -21,6 +21,12 @@ Matrix::Matrix(const Matrix &mtx) : rows(mtx.rows), columns(mtx.columns)
     std::memcpy( matrix, mtx.matrix, sizeof(float)*columns*rows);
 }
 
+Matrix::Matrix(float *mtx_arr, unsigned int rows, unsigned int columns): rows(rows), columns(columns)
+{
+    matrix = (float*)malloc(rows*columns*sizeof(float));
+    std::memcpy( matrix, mtx_arr, sizeof(float)*columns*rows);
+}
+
 Matrix::~Matrix()
 {
     free(matrix);
@@ -277,4 +283,12 @@ Matrix Matrix::getTranspose()
     Matrix outputMatrix(*this);
     outputMatrix.transpose();
     return outputMatrix;
+}
+
+float* Matrix::getMatrixDeepCopyArr()
+{
+    size_t size = rows*columns*sizeof(float);
+    float* b_matrix = (float*)malloc(size);
+    std::memcpy( b_matrix, matrix, size);
+    return b_matrix;
 }

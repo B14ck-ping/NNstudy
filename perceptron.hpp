@@ -2,7 +2,7 @@
 
 #include <iostream>
 #include "matrix.hpp"
-#include "matrixCUDA.cuh"
+#include "matrixCUDA.h"
 #include "activationFunctions.hpp"
 
 
