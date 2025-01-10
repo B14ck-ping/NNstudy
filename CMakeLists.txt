@@ -11,8 +11,6 @@ set(CMAKE_CUDA_FLAGS_RELWITHDEBINFO  "${CMAKE_CUDA_FLAGS_RELWITHDEBINFO}  -O2 -g
 add_library(fooCUDA STATIC  matrixCUDA.cu matrix.cpp perceptron.cpp) 
 #processor.cpp
 
-
-
 # set_target_properties(foo PROPERTIES CUDA_ARCHITECTURES "50;72")
 set_target_properties(fooCUDA PROPERTIES CUDA_ARCHITECTURES "50;72")
 # Request that particles be built with -std=c++11
