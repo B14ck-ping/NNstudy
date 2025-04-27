@@ -38,6 +38,8 @@ perceptron::perceptron(unsigned inNodes_cnt, unsigned hidNodes_cnt, unsigned out
         this->inputVector = new MatrixCUDA(inNodes_cnt, 1);
         this->hiddenVector = new MatrixCUDA(hidNodes_cnt, 1);
         this->outputVector = new MatrixCUDA(outNodes_cnt, 1);
+        // this->out1Vector = new MatrixCUDA(outNodes_cnt, 1, 1.0f);
+        // this->hidden1Vector = new MatrixCUDA(hidNodes_cnt, 1, 1.0f);
 
     } else {
         // this->wih = new Matrix(hidNodes_cnt, inNodes_cnt);
@@ -70,44 +72,39 @@ perceptron::~perceptron()
     delete this->inputVector;
     delete this->hiddenVector;
     delete this->outputVector;
+    // delete this->out1Vector;
+    // delete this->hidden1Vector;
 }
 
-int perceptron::train(Matrix &input, Matrix &targetValue)
+int perceptron::train(const MatrixCUDA &input, const MatrixCUDA &targetValue)
 {
     if (using_cuda){
-        float *input_arr = input.getMatrixDeepCopyArr();
-        MatrixCUDA _input(input_arr, input.get_rows(), input.get_columns());
-        free(input_arr);
-        MatrixCUDA hiddenInputs = MatrixCUDA::dot(*this->wih, _input); 
-        hiddenInputs.applySigmoid();
-        MatrixCUDA outputInputs = MatrixCUDA::dot(*this->who, hiddenInputs); 
-        outputInputs.applySigmoid();
+        *inputVector = input;
+        *hiddenVector = std::move(MatrixCUDA::dot(*this->wih, *inputVector)); 
+        hiddenVector->applySigmoid();
+        *outputVector = std::move(MatrixCUDA::dot(*this->who, *hiddenVector)); 
+        outputVector->applySigmoid();
 
-        float *outErrArr = targetValue.getMatrixDeepCopyArr();
-        MatrixCUDA outputErrors(outErrArr, targetValue.get_rows(), targetValue.get_columns());
-        free(outErrArr);
-        outputErrors -= outputInputs;
-        this->who->transpose();
-        MatrixCUDA hiddenErrors = MatrixCUDA::dot(*this->who, outputErrors);
-        this->who->transpose();
-    
-        outputErrors *= outputInputs;
+        MatrixCUDA outputErrors(targetValue);
+        outputErrors -= *outputVector;
+        MatrixCUDA who_tr = this->who->getTranspose();
+        MatrixCUDA hiddenErrors = std::move(MatrixCUDA::dot(who_tr, outputErrors));
+
+        outputErrors *= *outputVector;
         MatrixCUDA temp1(this->outputNodes, 1, 1.0);// = oneMatrix_10;
-        temp1 -= outputInputs;
-        hiddenInputs.transpose();
+        temp1 -= *outputVector;
+        MatrixCUDA hiddenInputs_tr = std::move(hiddenVector->getTranspose());
         outputErrors *= temp1;
-        MatrixCUDA w_delta = MatrixCUDA::dot(outputErrors, hiddenInputs);
-        hiddenInputs.transpose();
+        MatrixCUDA w_delta = std::move(MatrixCUDA::dot(outputErrors, hiddenInputs_tr));
         w_delta *= 0.1f;
 
         *this->who += w_delta;
 
-        hiddenErrors *= hiddenInputs;
+        hiddenErrors *= *hiddenVector;
         MatrixCUDA temp2(this->hiddenNodes, 1, 1.0);// = oneMatrix_100;
-        temp2 -= hiddenInputs;
-        _input.transpose();
+        temp2 -= *hiddenVector;
         hiddenErrors *= temp2;
-        w_delta = MatrixCUDA::dot(hiddenErrors, _input);
+        w_delta = std::move(MatrixCUDA::dot(hiddenErrors, this->inputVector->getTranspose()));
         w_delta *= 0.1f;
 
         *this->wih += w_delta;          
@@ -170,5 +167,6 @@ Matrix perceptron::queue(Matrix &input)
         // Matrix outputOutputs = actFunc::applySigmoid(outputInputs);
 
         // return outputOutputs;
+        return Matrix(0,0);
     }
 }

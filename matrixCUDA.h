@@ -16,6 +16,9 @@ public:
     explicit MatrixCUDA(unsigned int rows, unsigned int columns);
     explicit MatrixCUDA(unsigned int rows, unsigned int columns, float value);
     MatrixCUDA(MatrixCUDA &);
+    MatrixCUDA(const MatrixCUDA &);
+    MatrixCUDA(MatrixCUDA &&);
+    MatrixCUDA(const MatrixCUDA &&);
     MatrixCUDA(float *mtx_arr, unsigned int rows, unsigned int columns);
     ~MatrixCUDA();
     static MatrixCUDA dot(MatrixCUDA&, MatrixCUDA&);
@@ -28,13 +31,16 @@ public:
     MatrixCUDA operator- (MatrixCUDA&);
     void operator-= (MatrixCUDA&);
     MatrixCUDA operator= (MatrixCUDA&);
+    MatrixCUDA operator= (const MatrixCUDA&);
+    MatrixCUDA operator= (MatrixCUDA&&);
+    MatrixCUDA operator= (const MatrixCUDA&&);
     // float* operator[] (unsigned int);
     float getDeterminant() const;
-    unsigned int get_rows()
+    unsigned int get_rows() const
     {return rows;}
-    unsigned int get_columns()
+    unsigned int get_columns() const
     {return columns;}
-    MatrixCUDA getTranpose() const;
+    MatrixCUDA getTranspose() const;
     void transpose();
     MatrixCUDA getTranspose();
     void insertLine();
