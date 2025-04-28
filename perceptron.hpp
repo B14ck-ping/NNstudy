@@ -14,7 +14,7 @@ private:
     unsigned hiddenNodes;
     unsigned outputNodes;
 
-    MatrixCUDA *wih = NULL, *who = NULL, *inputVector = NULL, *hiddenVector = NULL, *outputVector = NULL, *out1Vector = NULL, *hidden1Vector = NULL;
+    MatrixCUDA *wih = NULL, *who = NULL/*,  *inputVector = NULL, *hiddenVector = NULL, *outputVector = NULL, *out1Vector = NULL, *hidden1Vector = NULL */;
 
 public:
     explicit perceptron(unsigned inNodes_cnt, unsigned hidNodes_cnt, unsigned outNodes_cnt);

@@ -4,7 +4,7 @@ project(neuralNet LANGUAGES CXX CUDA )
 # set(CUDAHOSTCXX g++)
 
 set(CMAKE_CUDA_FLAGS_DEBUG "${CMAKE_CUDA_FLAGS_DEBUG} -g")
-set(CMAKE_CUDA_FLAGS_RELWITHDEBINFO  "${CMAKE_CUDA_FLAGS_RELWITHDEBINFO}  -O2 -g -DNDEBUG")
+set(CMAKE_CUDA_FLAGS_RELWITHDEBINFO  "${CMAKE_CUDA_FLAGS_RELWITHDEBINFO}  -O2 -g -pg -DNDEBUG")
 
 
 # add_library(foo STATIC matrix.cpp)# perceptron.cpp)#  matrixCUDA.cu)#processor.cpp

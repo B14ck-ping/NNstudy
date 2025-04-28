@@ -99,33 +99,30 @@ __global__  void sygmoid(float *a, size_t rows, size_t cols) {
 }
 
 __global__  void transpose_kernel(float *in, float *out, unsigned int nx, unsigned int ny){
-	unsigned int ix=blockDim.x * blockIdx.x + threadIdx.x;
-	unsigned int iy=blockDim.y * blockIdx.y + threadIdx.y;
-	if (ix < nx && iy < ny) {
-        out[ix*ny + iy]=in[iy*nx + ix];
-    }	
+    __shared__ float tile[TILE_SIZE][TILE_SIZE+1];
+
+    int x = blockIdx.x * TILE_SIZE + threadIdx.x;
+    int y = blockIdx.y * TILE_SIZE + threadIdx.y;
+
+    if (x < nx && y < ny) {
+        tile[threadIdx.y][threadIdx.x] = in[y * nx + x];
+    }
+
+    __syncthreads();
+
+    // Координаты для записи в output (транспонированные)
+    int x_out = blockIdx.y * TILE_SIZE + threadIdx.x;  // колонка в транспонированной матрице
+    int y_out = blockIdx.x * TILE_SIZE + threadIdx.y;  // строка в транспонированной матрице
+
+    if (x_out < ny && y_out < nx) {
+        out[y_out * ny + x_out] = tile[threadIdx.x][threadIdx.y];
+    }
 }
 
 
 __global__  void dot_kernel(float* A, float* B, float* C, int M, int N, int K){
-// __global__  void dot_kernel(float *in1, float *in2, float *out, unsigned int K, unsigned int M, unsigned int N){    
-
-// 	unsigned int col = blockDim.x * blockIdx.x + threadIdx.x;
-// 	unsigned int row = blockDim.y * blockIdx.y + threadIdx.y;
-
-
-// 	if (col < K && row < M) {
-//         float result = 0.0f;
-//         for (int i = 0; i < N; i++) {
-//             result += in1[row*N + i] * in2[i*K + col];
-//         }
-//         __syncthreads();
-//         out[row*K + col] = result;
-//     }
-
-
-    __shared__ float tileA[TILE_SIZE][TILE_SIZE];
-    __shared__ float tileB[TILE_SIZE][TILE_SIZE];
+    __shared__ float tileA[TILE_SIZE][TILE_SIZE+1];
+    __shared__ float tileB[TILE_SIZE][TILE_SIZE+1];
 
     int row = blockIdx.y * blockDim.y + threadIdx.y; // индекс строки в C
     int col = blockIdx.x * blockDim.x + threadIdx.x; // индекс столбца в C
@@ -133,21 +130,25 @@ __global__  void dot_kernel(float* A, float* B, float* C, int M, int N, int K){
     float value = 0.0f;
 
     for (int t = 0; t < (N + TILE_SIZE - 1) / TILE_SIZE; ++t) {
-        // Загрузка A
-        if (row < M && (t * TILE_SIZE + threadIdx.x) < N)
-            tileA[threadIdx.y][threadIdx.x] = A[row * N + t * TILE_SIZE + threadIdx.x];
+        int tiledCol = t * TILE_SIZE + threadIdx.x;
+        int tiledRow = t * TILE_SIZE + threadIdx.y;
+
+        // Загружаем A с coalesced доступом
+        if (row < M && tiledCol < N)
+            tileA[threadIdx.y][threadIdx.x] = A[row * N + tiledCol];
         else
             tileA[threadIdx.y][threadIdx.x] = 0.0f;
 
-        // Загрузка B (правильная!)
-        if (col < K && (t * TILE_SIZE + threadIdx.y) < N)
-            tileB[threadIdx.y][threadIdx.x] = B[(t * TILE_SIZE + threadIdx.y) * K + col];
+        // Загружаем B с coalesced доступом 
+        if (tiledRow < N && col < K)
+            tileB[threadIdx.y][threadIdx.x] = B[tiledRow * K + col];
         else
             tileB[threadIdx.y][threadIdx.x] = 0.0f;
 
         __syncthreads();
 
         // Умножение плиток
+        #pragma unroll
         for (int i = 0; i < TILE_SIZE; ++i) {
             value += tileA[threadIdx.y][i] * tileB[i][threadIdx.x];
         }
@@ -198,23 +199,11 @@ MatrixCUDA::MatrixCUDA(MatrixCUDA&& move_mtx)
 {
     rows = move_mtx.get_rows();
     columns = move_mtx.get_columns();
-    size_t size = rows*columns*sizeof(float);
-    cudaMalloc( (void**)&matrix, size);
-    cudaMemcpy( matrix, move_mtx.matrix, size, cudaMemcpyDeviceToDevice ); 
-    cudaFree(move_mtx.matrix);
+    matrix = move_mtx.matrix;
+    move_mtx.rows = 0;
+    move_mtx.columns = 0;
     move_mtx.matrix = nullptr;
 }
-
-// MatrixCUDA::MatrixCUDA(const MatrixCUDA&& move_mtx)
-// {
-//     rows = move_mtx.get_rows();
-//     columns = move_mtx.get_columns();
-//     size_t size = rows*columns*sizeof(float);
-//     cudaMalloc( (void**)&matrix, size);
-//     cudaMemcpy( matrix, move_mtx.matrix, size, cudaMemcpyDeviceToDevice ); 
-//     cudaFree(move_mtx.matrix);
-//     move_mtx.matrix = nullptr;
-// }
 
 MatrixCUDA::MatrixCUDA(float *mtx_arr, unsigned int rows, unsigned int columns): rows(rows), columns(columns)
 {
@@ -226,10 +215,11 @@ MatrixCUDA::MatrixCUDA(float *mtx_arr, unsigned int rows, unsigned int columns):
 
 MatrixCUDA::~MatrixCUDA()
 {
-    cudaFree(matrix);
+    if(matrix != nullptr)
+        cudaFree(matrix);
 }
 
-MatrixCUDA MatrixCUDA::dot(MatrixCUDA &mtx1, MatrixCUDA &mtx2)
+MatrixCUDA MatrixCUDA::dot(const MatrixCUDA &mtx1, const MatrixCUDA &mtx2)
 {
     if (mtx1.get_columns() != mtx2.get_rows())
         throw std::invalid_argument("Matrix multiplication error: columns of first matrix != rows of second matrix");
@@ -238,11 +228,10 @@ MatrixCUDA MatrixCUDA::dot(MatrixCUDA &mtx1, MatrixCUDA &mtx2)
     unsigned output_rows = mtx1.get_rows();
     unsigned int output_columns = mtx2.get_columns();
     MatrixCUDA l_matrix(output_rows, output_columns);
-    
+
     dim3 threadsPerBlock(TILE_SIZE, TILE_SIZE);
     dim3 BlockDim((output_columns + TILE_SIZE - 1) / TILE_SIZE, (output_rows + TILE_SIZE - 1) / TILE_SIZE);
-    dot_kernel<<<BlockDim, threadsPerBlock>>>(mtx1.matrix, mtx2.matrix, l_matrix.matrix, output_rows, common_size, output_columns);
-    // dot_kernel<<<BlockDim, threadsPerBlock>>>(mtx1.matrix, mtx2.matrix, l_matrix.matrix, output_columns, output_rows, common_size);
+    dot_kernel<<<BlockDim, threadsPerBlock>>>(mtx1.matrix,mtx2.matrix, l_matrix.matrix, output_rows, common_size, output_columns);
     cudaDeviceSynchronize();
 
     return l_matrix;
@@ -261,6 +250,7 @@ void MatrixCUDA::operator*= (float scalar)
     dim3 threadsPerBlock(TILE_SIZE, TILE_SIZE);
     dim3 BlockDim((columns + TILE_SIZE - 1) / TILE_SIZE, (rows + TILE_SIZE - 1) / TILE_SIZE);
     multiple_to_val<<<BlockDim, threadsPerBlock>>>(matrix, scalar, rows, columns);
+    cudaDeviceSynchronize();
 }
 
 MatrixCUDA MatrixCUDA::operator* (MatrixCUDA &m2)
@@ -361,26 +351,12 @@ MatrixCUDA MatrixCUDA::operator= (MatrixCUDA&& move_mtx)
     this->rows = move_mtx.get_rows();
     this->columns = move_mtx.get_columns();
 
-    size_t size = rows*columns*sizeof(float);
-    cudaMalloc( (void**)&matrix, size);
-    cudaMemcpy( matrix, move_mtx.matrix, size, cudaMemcpyDeviceToDevice ); 
-    cudaFree(move_mtx.matrix);
+    this->matrix = move_mtx.matrix;
+    move_mtx.rows = 0;
+    move_mtx.columns = 0;
     move_mtx.matrix = nullptr;
     return *this;
 }
-
-// MatrixCUDA MatrixCUDA::operator= (const MatrixCUDA&&)
-// {
-//     this->rows = move_mtx.get_rows();
-//     this->columns = move_mtx.get_columns();
-
-//     size_t size = rows*columns*sizeof(float);
-//     cudaMalloc( (void**)&matrix, size);
-//     cudaMemcpy( matrix, move_mtx.matrix, size, cudaMemcpyDeviceToDevice ); 
-//     cudaFree(move_mtx.matrix);
-//     move_mtx.matrix = nullptr;
-//     return *this;
-// }
 
 float MatrixCUDA::getDeterminant() const
 {
@@ -389,7 +365,7 @@ float MatrixCUDA::getDeterminant() const
 
 MatrixCUDA MatrixCUDA::getTranspose() const
 {
-    MatrixCUDA new_mtx(this->matrix, rows, columns);
+    MatrixCUDA new_mtx(*this);
     new_mtx.transpose();
     return new_mtx;
 }
@@ -400,9 +376,9 @@ void MatrixCUDA::transpose()
 
     size_t size = rows*columns*sizeof(float);
     cudaMalloc( (void**)&t_matrix, size);
-    dim3 threadsPerBlock(TILE_SIZE, TILE_SIZE);
-    dim3 BlockDim((columns + TILE_SIZE - 1) / TILE_SIZE, (rows + TILE_SIZE - 1) / TILE_SIZE);
-    transpose_kernel<<<BlockDim, threadsPerBlock>>>(matrix, t_matrix, columns, rows);
+    dim3 blockSize(TILE_SIZE, TILE_SIZE);
+    dim3 gridSize((columns + TILE_SIZE - 1) / TILE_SIZE, (rows + TILE_SIZE - 1) / TILE_SIZE);
+    transpose_kernel<<<gridSize, blockSize>>>(matrix, t_matrix, columns, rows);
     cudaDeviceSynchronize();
 
     cudaFree(matrix);
@@ -413,19 +389,13 @@ void MatrixCUDA::transpose()
     columns = temp;
 }
 
-MatrixCUDA MatrixCUDA::getTranspose()
-{
-    MatrixCUDA outputMatrixCUDA(*this);
-    outputMatrixCUDA.transpose();
-    return outputMatrixCUDA;
-}
-
 
 void MatrixCUDA::applySigmoid()
 {
     dim3 threadsPerBlock(TILE_SIZE, TILE_SIZE);
     dim3 BlockDim((columns + TILE_SIZE - 1) / TILE_SIZE, (rows + TILE_SIZE - 1) / TILE_SIZE);
     sygmoid<<<BlockDim, threadsPerBlock>>>(matrix, rows, columns);
+    cudaDeviceSynchronize();
 }
 
 float* MatrixCUDA::getHost_matrix()
