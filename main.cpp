@@ -49,7 +49,10 @@ static void s_print_duration(chrono::microseconds duration)
 
 void printProgressBar(size_t itemCnt, size_t curr_item)
 {
+    static int last_percent = 0;
     int curr_percent = (int)(((float)(curr_item+1)/(float)itemCnt)*100.0);
+    if (curr_percent == last_percent) return;
+    last_percent = curr_percent;
     // cout << "\x1b[2K" << "\x1b[1A" << "\x1b[2K" << "\r";
     cout << "\r";
     cout << "Progress: " << curr_percent << "% ";
@@ -81,19 +84,19 @@ int main()
 {
     cudaSetDevice(0);
 
-#if 0
+#if 1
     // Only test
 
-    const unsigned long testRow = 100;
-    const unsigned long testColumn = 145;
+    const unsigned long testRow = 10000;
+    const unsigned long testColumn = 30000;
 
     try {
-        float inputTestArr[testRow*testColumn] = {};
+        float *inputTestArr = new float[testRow*testColumn];
         for  (long i = 0; i < testRow*testColumn; i++)
             inputTestArr[i] = (float)(std::rand()) / (float)(std::rand());
 
-        std::cout << "Original 1st matrix:" << std::endl;
-        printMatrix(testRow, testColumn, inputTestArr);
+        // std::cout << "Original 1st matrix:" << std::endl;
+        // printMatrix(testRow, testColumn, inputTestArr);
 
         Matrix test1mtx(inputTestArr, testRow, testColumn);
         MatrixCUDA test1mtx_cuda(inputTestArr, testRow, testColumn);
@@ -104,11 +107,11 @@ int main()
         Matrix test2mtx(inputTestArr, testRow, testColumn);
         MatrixCUDA test2mtx_cuda(inputTestArr, testRow, testColumn);
 
-        std::cout << "Original 2nd matrix:" << std::endl;
-        printMatrix(testRow, testColumn, inputTestArr);
+        // std::cout << "Original 2nd matrix:" << std::endl;
+        // printMatrix(testRow, testColumn, inputTestArr);
 
         // Sum test
-        {
+        if (0){
             Matrix res = test1mtx + test2mtx;
             MatrixCUDA res_c = test1mtx_cuda + test2mtx_cuda;
 
@@ -116,7 +119,7 @@ int main()
 
             float *res_arr_c = res_c.getHost_matrix();
 
-            if (memcmp(res_arr, res_arr_c, res.get_columns()*res.get_rows()) == 0){
+            if (memcmp(res_arr, res_arr_c, res.get_columns()*res.get_rows()*sizeof(float)) == 0){
                 std::cout << "Sum test: PASSED" << std::endl;
             } else {
                 std::cout << "Sum test: FAILED" << std::endl;
@@ -140,7 +143,7 @@ int main()
         }
         
         // multiple test
-        {
+        if (0){
             Matrix res = test1mtx * test2mtx;
             MatrixCUDA res_c = test1mtx_cuda * test2mtx_cuda;
 
@@ -148,7 +151,7 @@ int main()
 
             float *res_arr_c = res_c.getHost_matrix();
 
-            if (memcmp(res_arr, res_arr_c, res.get_columns()*res.get_rows()) == 0){
+            if (memcmp(res_arr, res_arr_c, res.get_columns()*res.get_rows()*sizeof(float)) == 0){
                 std::cout << "multiplication test: PASSED" << std::endl;
             } else {
                 std::cout << "multiplication test: FAILED" << std::endl;
@@ -172,7 +175,7 @@ int main()
         }
 
         // subtruct test
-        {
+        if (0){
             Matrix res = test1mtx - test2mtx;
             MatrixCUDA res_c = test1mtx_cuda - test2mtx_cuda;
 
@@ -180,7 +183,7 @@ int main()
 
             float *res_arr_c = res_c.getHost_matrix();
 
-            if (memcmp(res_arr, res_arr_c, res.get_columns()*res.get_rows()) == 0){
+            if (memcmp(res_arr, res_arr_c, res.get_columns()*res.get_rows()*sizeof(float)) == 0){
                 std::cout << "subtruct test: PASSED" << std::endl;
             } else {
                 std::cout << "subtruct test: FAILED" << std::endl;
@@ -204,24 +207,37 @@ int main()
         }
 
         // transpose test
-        {
+        if (0){
             Matrix res(test1mtx);
+            auto start = chrono::high_resolution_clock::now();
             res.transpose();
+            auto stop = chrono::high_resolution_clock::now();
+            auto duration = chrono::duration_cast<chrono::microseconds>(stop - start);
+            cout << "CPU transpose time: ";
+            s_print_duration(duration);
+
+
+            
             MatrixCUDA res_c(test1mtx_cuda);
+            start = chrono::high_resolution_clock::now();
             res_c.transpose();
+            stop = chrono::high_resolution_clock::now();
+            duration = chrono::duration_cast<chrono::microseconds>(stop - start);
+            cout << "GPU transpose time: ";
+            s_print_duration(duration);
 
             float *res_arr = res.getMatrixDeepCopyArr();
 
             float *res_arr_c = res_c.getHost_matrix();
 
-            if (memcmp(res_arr, res_arr_c, res.get_columns()*res.get_rows()) == 0){
+            if (memcmp(res_arr, res_arr_c, res.get_columns()*res.get_rows()*sizeof(float)) == 0){
                 std::cout << "transpose test: PASSED" << std::endl;
             } else {
                 std::cout << "transpose test: FAILED" << std::endl;
                 std::cout << "Expected result of 1st matrix transpose (CPU):" << std::endl;
-                printMatrix(res.get_columns(), res.get_rows(), res_arr);
+                printMatrix(res.get_rows(), res.get_columns(), res_arr);
                 std::cout << "Real result of 1st matrix transpose (GPU)" << std::endl;
-                printMatrix(res_c.get_columns(), res_c.get_rows(), res_arr_c);
+                printMatrix(res_c.get_rows(), res_c.get_columns(), res_arr_c);
                 // for(unsigned long i = 0; i < res_c.get_columns()*res_c.get_rows(); i++){
                 //     if (std::abs((res_arr_c[i] - res_arr[i])/res_arr[i]) > 0.01f){
                 //         std::cout << "i: " << i << " CPU: " << res_arr[i] << " GPU: " << res_arr_c[i] << std::endl;
@@ -238,7 +254,7 @@ int main()
         }
 
         // product to scalar test
-        {
+        if (0){
             float scalar = (float)(std::rand()) / (float)(std::rand());
             Matrix res(test1mtx);
             res *= scalar;
@@ -249,14 +265,14 @@ int main()
 
             float *res_arr_c = res_c.getHost_matrix();
 
-            if (memcmp(res_arr, res_arr_c, res.get_columns()*res.get_rows()) == 0){
+            if (memcmp(res_arr, res_arr_c, res.get_columns()*res.get_rows()*sizeof(float)) == 0){
                 std::cout << "product to scalar test: PASSED" << std::endl;
             } else {
                 std::cout << "product to scalar test: FAILED" << std::endl;
                 std::cout << "Expected result of 1st matrix  product to scalar (CPU):" << std::endl;
-                printMatrix(res.get_columns(), res.get_rows(), res_arr);
+                printMatrix(res.get_rows(), res.get_columns(), res_arr);
                 std::cout << "Real result of 1st matrix  product to scalar (GPU)" << std::endl;
-                printMatrix(res_c.get_columns(), res_c.get_rows(), res_arr_c);
+                printMatrix(res_c.get_rows(), res_c.get_columns(), res_arr_c);
 
                 // for(unsigned long i = 0; i < res_c.get_columns()*res_c.get_rows(); i++){
                 //     if (std::abs((res_arr_c[i] - res_arr[i])/res_arr[i]) > 0.001f){
@@ -276,26 +292,51 @@ int main()
 
         // dot product test
         {
+            auto start = chrono::high_resolution_clock::now();
             Matrix res = Matrix::dot(test1mtx, test2mtx.getTranspose());
-            MatrixCUDA res_c = MatrixCUDA::dot(test1mtx_cuda, test2mtx_cuda.getTranspose());
+            auto stop = chrono::high_resolution_clock::now();
+            auto duration = chrono::duration_cast<chrono::microseconds>(stop - start);
+            cout << "CPU Dot product time: ";
+            s_print_duration(duration);
+            
+            long long average = 0;
+            MatrixCUDA mt2trans = test2mtx_cuda.getTranspose();
+            MatrixCUDA res_c(0, 0);
+            for(int i = 0; i < 10000; ++i){
+                start = chrono::high_resolution_clock::now();
+                res_c = std::move(MatrixCUDA::dot(test1mtx_cuda, mt2trans));
+                stop = chrono::high_resolution_clock::now();
+                duration = chrono::duration_cast<chrono::microseconds>(stop - start);
+                average += duration.count();
+            }
+            cout << "GPU Dot product average time: " << average/10000 << " microseconds" << endl;
+            
+            
+            res_c = MatrixCUDA::dot(test1mtx_cuda, test2mtx_cuda.getTranspose());
 
             float *res_arr = res.getMatrixDeepCopyArr();
-
             float *res_arr_c = res_c.getHost_matrix();
 
-            if (memcmp(res_arr, res_arr_c, res.get_columns()*res.get_rows()) == 0){
+            bool passed = true;
+            for(unsigned long i = 0; i < res_c.get_columns()*res_c.get_rows(); i++){
+                if (std::abs((res_arr_c[i] - res_arr[i])/res_arr[i]) > 0.01f){
+                    passed = false;
+                }
+            }
+
+            if (passed){
                 std::cout << "dot product test: PASSED" << std::endl;
             } else {
                 std::cout << "dot product test: FAILED" << std::endl;
-                std::cout << "Expected result of 2 matrix dot product (CPU):" << std::endl;
-                printMatrix(res.get_columns(), res.get_rows(), res_arr);
-                std::cout << "Real result of 2 matrix dot product (GPU)" << std::endl;
-                printMatrix(res_c.get_columns(), res_c.get_rows(), res_arr_c);
-                for(unsigned long i = 0; i < res_c.get_columns()*res_c.get_rows(); i++){
-                    if (std::abs((res_arr_c[i] - res_arr[i])/res_arr[i]) > 0.01f){
-                        std::cout << "i: " << i << " CPU: " << res_arr[i] << " GPU: " << res_arr_c[i] << std::endl;
-                    }
-                }
+                // std::cout << "Expected result of 2 matrix dot product (CPU):" << std::endl;
+                // printMatrix(res.get_rows(), res.get_columns(), res_arr);
+                // std::cout << "Real result of 2 matrix dot product (GPU)" << std::endl;
+                // printMatrix(res_c.get_rows(), res_c.get_columns(), res_arr_c);
+                // for(unsigned long i = 0; i < res_c.get_columns()*res_c.get_rows(); i++){
+                //     if (std::abs((res_arr_c[i] - res_arr[i])/res_arr[i]) > 0.01f){
+                //         std::cout << "i: " << i << " CPU: " << res_arr[i] << " GPU: " << res_arr_c[i] << std::endl;
+                //     }
+                // }
                 free(res_arr);
                 free(res_arr_c);
 
@@ -356,11 +397,11 @@ int main()
 
     const size_t trainDataSetSize = 60000;
     const size_t testDataSetSize = 1000;
-    int epochs = 1;
+    int epochs = 3;
 
     // processor::Instance();
 
-    perceptron MNISTperc(784, 300, 10);
+    perceptron MNISTperc(784, 100, 10);
 
     ifstream train_file("mnist_train.csv", ios::in); 
     // Open file         
@@ -423,7 +464,8 @@ int main()
         cout << "Start epoch "<< ep+1 << endl << endl;
         auto epoch_start = chrono::high_resolution_clock::now();
         for (size_t i = 0; i < trainDataSetSize; i++){
-            printProgressBar(trainDataSetSize, i);
+            // printProgressBar(trainDataSetSize, i);
+            // std::cout<< "\r" << "Progress: " << (int)(((float)(i+1)/(float)trainDataSetSize)*100.0) << "% ";
             // Train matrix
             MNISTperc.train(*inputs[i].input, *inputs[i].target);
         }
