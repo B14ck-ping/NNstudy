@@ -1,7 +1,5 @@
 #pragma once
 #include <iostream>
-#include "cuda_runtime.h"
-#include "cuda.h"
 
 using namespace std;
 
@@ -16,9 +14,12 @@ public:
     explicit MatrixCUDA(unsigned int rows, unsigned int columns);
     explicit MatrixCUDA(unsigned int rows, unsigned int columns, float value);
     MatrixCUDA(MatrixCUDA &);
+    MatrixCUDA(const MatrixCUDA &);
+    MatrixCUDA(MatrixCUDA &&);
+    MatrixCUDA(const MatrixCUDA &&);
     MatrixCUDA(float *mtx_arr, unsigned int rows, unsigned int columns);
     ~MatrixCUDA();
-    static MatrixCUDA dot(MatrixCUDA&, MatrixCUDA&);
+    static MatrixCUDA dot(const MatrixCUDA&, const MatrixCUDA&);
     MatrixCUDA operator* (float);
     void operator*= (float);
     MatrixCUDA operator* (MatrixCUDA&);
@@ -28,18 +29,21 @@ public:
     MatrixCUDA operator- (MatrixCUDA&);
     void operator-= (MatrixCUDA&);
     MatrixCUDA operator= (MatrixCUDA&);
-    // float* operator[] (unsigned int);
+    MatrixCUDA operator= (const MatrixCUDA&);
+    MatrixCUDA operator= (MatrixCUDA&&);
+    MatrixCUDA operator= (const MatrixCUDA&&);
     float getDeterminant() const;
-    unsigned int get_rows()
+    unsigned int get_rows() const
     {return rows;}
-    unsigned int get_columns()
+    unsigned int get_columns() const
     {return columns;}
-    MatrixCUDA getTranpose() const;
+    MatrixCUDA getTranspose() const;
     void transpose();
-    MatrixCUDA getTranspose();
     void insertLine();
     void insertColumn();
 
     void applySigmoid();
-    float* getHost_matrix();
+    float* getHost_matrix() const;
+
+    float* getDeePCopyOnDevice() const;
 };

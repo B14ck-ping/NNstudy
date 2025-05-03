@@ -32,28 +32,28 @@ Matrix::~Matrix()
     free(matrix);
 }
 
-Matrix Matrix::dot(Matrix &mtx1, Matrix &mtx2)
+Matrix Matrix::dot(const Matrix &mtx1, const Matrix &mtx2)
 {
     if (mtx1.get_columns() != mtx2.get_rows())
-        return mtx1;
+        throw std::invalid_argument("Matrix multiplication error: columns of first matrix != rows of second matrix");
 
     unsigned mtx1_rows = mtx1.get_rows();
     unsigned mtx1_col = mtx1.get_columns();
     unsigned int l_output_columns = mtx2.get_columns();
     Matrix l_matrix(mtx1_rows, l_output_columns);
-    Matrix mtx_2_t = mtx2.getTranspose();
+    // Matrix mtx_2_t = mtx2.getTranspose();
 
-    // for (unsigned int k = 0; k < l_output_columns; k++){
-    //     for (unsigned int i = 0; i < mtx1_rows; i++){
-    //         float l_temp = 0.0;
-    //         for(unsigned int j = 0; j < mtx1_col; j++){
-    //             l_temp += mtx1[i][j] * mtx2[j][k];
-    //         }
-    //         *(*(l_matrix.matrix + i) + k) = l_temp;
-    //     }
-    // }
+    for (unsigned int k = 0; k < l_output_columns; k++){
+        for (unsigned int i = 0; i < mtx1_rows; i++){
+            float l_temp = 0.0;
+            for(unsigned int j = 0; j < mtx1_col; j++){
+                l_temp += mtx1[i][j] * mtx2[j][k];
+            }
+            l_matrix[i][k] = l_temp;
+        }
+    }
 
-    unsigned int mtx1_col_even_idx = mtx1_col - (mtx1_col - 1)%4;
+    /* unsigned int mtx1_col_even_idx = mtx1_col - (mtx1_col - 1)%4;
     if(mtx1_col_even_idx >= 4){
         for (unsigned int k = 0; k < l_output_columns; k++){
             for (unsigned int i = 0; i < mtx1_rows; i++){
@@ -102,7 +102,7 @@ Matrix Matrix::dot(Matrix &mtx1, Matrix &mtx2)
             }
         }
 
-    }
+    } */
     return l_matrix;
 }
 
@@ -110,21 +110,7 @@ Matrix Matrix::operator* (float scalar)
 {
     Matrix temp(*this);
 
-    unsigned int col_even_idx = temp.columns - (temp.columns - 1)%4;
-
-    for (unsigned int i = 0; i < temp.rows; i++){
-        for(unsigned int j = 0; j < col_even_idx; j+=4){
-            auto first_vector = _mm_loadu_ps(&temp[i][j]);
-            auto second_vector = _mm_broadcast_ss(&scalar);
-
-            auto sum_vector = _mm_mul_ps(first_vector, second_vector);
-
-            _mm_storeu_ps(&temp[i][j], sum_vector);
-            // temp.matrix[i][j] *= scalar;
-        }
-        if(col_even_idx != columns)
-            temp[i][columns-1] *= scalar;
-    }
+    temp *= scalar;
 
     return temp;
 }
@@ -152,20 +138,21 @@ void Matrix::operator*= (float scalar)
 
 Matrix Matrix::operator* (Matrix &mtrx)
 {
-    Matrix out_matrix(mtrx.get_rows(), mtrx.get_columns());
+    if (mtrx.columns != this->columns || mtrx.rows != this->rows)
+        throw std::invalid_argument("Hadamard product error: matrices have different dimensions!");
 
-    for (unsigned int i = 0; i < rows; i++){
-        for(unsigned int j = 0; j < columns; j++){
+    Matrix out_matrix(*this);
 
-            matrix[i*columns + j] *= mtrx[i][j];
-        }
-    }
+    out_matrix *= mtrx;
 
     return out_matrix;      
 }
 
 void Matrix::operator*= (Matrix &mtrx)
 {
+    if (mtrx.columns != this->columns || mtrx.rows != this->rows)
+        throw std::invalid_argument("Hadamard product error: matrices have different dimensions!");
+
     unsigned int col_even_idx = columns - columns%4;
 
     for (unsigned int i = 0; i < rows; i++){
@@ -186,41 +173,60 @@ void Matrix::operator*= (Matrix &mtrx)
 
 Matrix Matrix::operator+ (Matrix &mtrx)
 {
-    return Matrix(0,0);
+    if (mtrx.columns != this->columns || mtrx.rows != this->rows)
+        throw std::invalid_argument("Matrix sum error: matrices have different dimensions!");
+
+    Matrix out_matrix(*this);
+
+    out_matrix += mtrx;
+
+    return out_matrix; 
 }
 
-void Matrix::operator+= (Matrix &m2)
+void Matrix::operator+= (Matrix &mtrx)
 {
+    if (mtrx.columns != this->columns || mtrx.rows != this->rows)
+        throw std::invalid_argument("Matrix sum error: matrices have different dimensions!");
+
     unsigned int col_even_idx = columns - columns%4;
 
     for (unsigned int i = 0; i < rows; i++){
         for(unsigned int j = 0; j < col_even_idx; j+=4){
             auto first_vector = _mm_loadu_ps(&matrix[i*columns+j]);
-            auto second_vector = _mm_loadu_ps(&m2.matrix[i*columns+j]);
+            auto second_vector = _mm_loadu_ps(&mtrx.matrix[i*columns+j]);
 
             auto sum_vector = _mm_add_ps(first_vector, second_vector);
 
             _mm_storeu_ps(&matrix[i*columns + j], sum_vector);
 
-            // matrix[i*columns + j] += m2.matrix[i*columns + j];
+            // matrix[i*columns + j] += mtrx.matrix[i*columns + j];
         }
         if(col_even_idx != columns)
             for (unsigned int k = col_even_idx; k < columns; k++)
-                matrix[i*columns+k] += m2[i][k];
+                matrix[i*columns+k] += mtrx[i][k];
 
     }
 }
 
-Matrix Matrix::operator- (Matrix&)
+Matrix Matrix::operator- (Matrix& mtrx)
 {
-    return Matrix(0,0);
+    if (mtrx.columns != this->columns || mtrx.rows != this->rows)
+        throw std::invalid_argument("Matrix subtraction error: matrices have different dimensions!");
+    Matrix out_matrix(*this);
+
+    out_matrix -= mtrx;
+
+    return out_matrix;
 }
 
-void Matrix::operator-= (Matrix &m2)
+void Matrix::operator-= (Matrix &mtrx)
 {
+    if (mtrx.columns != this->columns || mtrx.rows != this->rows)
+        throw std::invalid_argument("Matrix subtraction error: matrices have different dimensions!");
+
     for (unsigned int i = 0; i < rows; i++){
         for(unsigned int j = 0; j < columns; j++){
-            matrix[i*columns+j] -= m2[i][j];
+            matrix[i*columns+j] -= mtrx[i][j];
         }
     }
 }
@@ -229,6 +235,9 @@ Matrix Matrix::operator= (Matrix &m2)
 {
     this->rows = m2.rows;
     this->columns = m2.columns;
+
+    if (this->matrix != nullptr)
+        free(matrix);
 
     matrix = (float*)malloc(rows*columns*sizeof(float));
     std::memcpy( matrix, m2.matrix, sizeof(float)*columns*rows);
@@ -241,6 +250,11 @@ float* Matrix::operator[] (unsigned int idx)
     return matrix + idx*columns;
 }
 
+const float* Matrix::operator[] (unsigned int idx) const
+{
+    return matrix + idx*columns;
+}
+
 float Matrix::getDeterminant() const
 {
     return 0.0;
@@ -248,14 +262,8 @@ float Matrix::getDeterminant() const
 
 Matrix Matrix::getTranpose() const
 {
-    Matrix new_mtx(columns, rows);
-
-    for (unsigned int i = 0; i < columns; i++){
-        for(unsigned int j = 0; j < rows; j++){
-            new_mtx[i][j] = matrix[j*columns+i];
-        }
-    }
-
+    Matrix new_mtx(*this);
+    new_mtx.transpose();
     return new_mtx;
 }
 
@@ -278,14 +286,7 @@ void Matrix::transpose()
     columns = temp;
 }
 
-Matrix Matrix::getTranspose()
-{
-    Matrix outputMatrix(*this);
-    outputMatrix.transpose();
-    return outputMatrix;
-}
-
-float* Matrix::getMatrixDeepCopyArr()
+float* Matrix::getMatrixDeepCopyArr() const
 {
     size_t size = rows*columns*sizeof(float);
     float* b_matrix = (float*)malloc(size);
