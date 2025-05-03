@@ -84,7 +84,7 @@ int main()
 {
     cudaSetDevice(0);
 
-#if 1
+#if 0
     // Only test
 
     const unsigned long testRow = 10000;
@@ -397,11 +397,11 @@ int main()
 
     const size_t trainDataSetSize = 60000;
     const size_t testDataSetSize = 1000;
-    int epochs = 3;
+    int epochs = 4;
 
     // processor::Instance();
 
-    perceptron MNISTperc(784, 100, 10);
+    perceptron MNISTperc(784, 300, 10);
 
     ifstream train_file("mnist_train.csv", ios::in); 
     // Open file         
