@@ -1,7 +1,5 @@
 #pragma once
 #include <iostream>
-#include "cuda_runtime.h"
-#include "cuda.h"
 
 using namespace std;
 
@@ -45,5 +43,7 @@ public:
     void insertColumn();
 
     void applySigmoid();
-    float* getHost_matrix();
+    float* getHost_matrix() const;
+
+    float* getDeePCopyOnDevice() const;
 };

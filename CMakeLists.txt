@@ -8,7 +8,7 @@ set(CMAKE_CUDA_FLAGS_RELWITHDEBINFO  "${CMAKE_CUDA_FLAGS_RELWITHDEBINFO}  -O2 -g
 
 
 # add_library(foo STATIC matrix.cpp)# perceptron.cpp)#  matrixCUDA.cu)#processor.cpp
-add_library(fooCUDA STATIC  matrixCUDA.cu matrix.cpp perceptron.cpp) 
+add_library(fooCUDA STATIC  matrixCUDA.cu matrix.cpp perceptron.cu kernels.cu) 
 #processor.cpp
 
 # set_target_properties(foo PROPERTIES CUDA_ARCHITECTURES "50;72")

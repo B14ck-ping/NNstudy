@@ -15,7 +15,7 @@ public:
     Matrix(const Matrix &);
     Matrix(float *mtx_arr, unsigned int rows, unsigned int columns);
     ~Matrix();
-    static Matrix dot(Matrix&, Matrix&);
+    static Matrix dot(const Matrix&, const Matrix&);
     Matrix operator* (float);
     void operator*= (float);
     Matrix operator* (Matrix&);
@@ -26,16 +26,16 @@ public:
     void operator-= (Matrix&);
     Matrix operator= (Matrix&);
     float* operator[] (unsigned int);
+    const float* operator[] (unsigned int) const;
     float getDeterminant() const;
-    unsigned int get_rows()
+    unsigned int get_rows() const
     {return rows;}
-    unsigned int get_columns()
+    unsigned int get_columns() const
     {return columns;}
     Matrix getTranpose() const;
     void transpose();
-    Matrix getTranspose();
     void insertLine();
     void insertColumn();
-    float* getMatrixDeepCopyArr();
+    float* getMatrixDeepCopyArr() const;
 };
 
