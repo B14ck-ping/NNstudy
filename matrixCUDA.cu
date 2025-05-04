@@ -42,6 +42,9 @@ MatrixCUDA::MatrixCUDA(MatrixCUDA&& move_mtx)
 {
     rows = move_mtx.get_rows();
     columns = move_mtx.get_columns();
+    if (this->matrix != nullptr)
+        cudaFree(matrix);
+
     matrix = move_mtx.matrix;
     move_mtx.rows = 0;
     move_mtx.columns = 0;
@@ -170,6 +173,9 @@ MatrixCUDA MatrixCUDA::operator= (MatrixCUDA &m2)
     this->rows = m2.rows;
     this->columns = m2.columns;
 
+    if (this->matrix != nullptr)
+        cudaFree(matrix);
+
     size_t size = rows*columns*sizeof(float);
     cudaMalloc( (void**)&matrix, size);
     cudaMemcpy( matrix, m2.matrix, size, cudaMemcpyDeviceToDevice ); 
@@ -182,6 +188,9 @@ MatrixCUDA MatrixCUDA::operator= (const MatrixCUDA &m2)
     this->rows = m2.get_rows();
     this->columns = m2.get_columns();
 
+    if (this->matrix != nullptr)
+        cudaFree(matrix);
+
     size_t size = rows*columns*sizeof(float);
     cudaMalloc( (void**)&matrix, size);
     cudaMemcpy( matrix, m2.matrix, size, cudaMemcpyDeviceToDevice ); 
@@ -193,6 +202,9 @@ MatrixCUDA MatrixCUDA::operator= (MatrixCUDA&& move_mtx)
 {
     this->rows = move_mtx.get_rows();
     this->columns = move_mtx.get_columns();
+
+    if (this->matrix != nullptr)
+        cudaFree(matrix);
 
     this->matrix = move_mtx.matrix;
     move_mtx.rows = 0;
