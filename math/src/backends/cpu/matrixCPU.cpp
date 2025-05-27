@@ -1,27 +1,33 @@
-#include "matrix.hpp"
+#include "matrixCPU.hpp"
 #include <immintrin.h>
 #include <cstdint>
 #include <cstring>
 #include <new>
 
-Matrix::Matrix(unsigned int a_rows, unsigned int a_columns) : rows(a_rows), columns(a_columns)
+MatrixCPU::MatrixCPU(unsigned int a_rows, unsigned int a_columns) : rows(a_rows), columns(a_columns)
 {
     matrix = (float*)malloc(rows*columns*sizeof(float));
 }
 
-Matrix::Matrix(unsigned int a_rows, unsigned int a_columns, float value) : rows(a_rows), columns(a_columns)
+MatrixCPU::MatrixCPU(unsigned int a_rows, unsigned int a_columns, float value) : rows(a_rows), columns(a_columns)
 {
     matrix = (float*)malloc(rows*columns*sizeof(float));
     std::fill(matrix, matrix + rows*columns, value);
 }
 
-Matrix::Matrix(const Matrix &mtx) : rows(mtx.rows), columns(mtx.columns)
+MatrixCPU::MatrixCPU(const Matrix &mtx) 
 {
+    const MatrixCPU* _mtx = dynamic_cast<const MatrixCPU*>(&mtx);
+    if (!_mtx) {
+        throw std::runtime_error("Data may be copied only on same device!");
+    }
+    rows = mtx.get_rows();
+    columns = mtx.get_columns();
     matrix = (float*)malloc(rows*columns*sizeof(float));
-    std::memcpy( matrix, mtx.matrix, sizeof(float)*columns*rows);
+    std::memcpy(matrix, _mtx->matrix, sizeof(float)*columns*rows);
 }
 
-Matrix::Matrix(float *mtx_arr, unsigned int rows, unsigned int columns): rows(rows), columns(columns)
+MatrixCPU::MatrixCPU(float *mtx_arr, unsigned int rows, unsigned int columns): rows(rows), columns(columns)
 {
     matrix = (float*)malloc(rows*columns*sizeof(float));
     std::memcpy( matrix, mtx_arr, sizeof(float)*columns*rows);

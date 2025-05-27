@@ -1,8 +1,6 @@
 #include <stdio.h>
 #include "matrixCUDA.h"
-#include "kernels.cuh"
-#include "cuda_runtime.h"
-#include "cuda.h"
+
 
 
 MatrixCUDA::MatrixCUDA(unsigned int a_rows, unsigned int a_columns) : rows(a_rows), columns(a_columns)
@@ -20,8 +18,25 @@ MatrixCUDA::MatrixCUDA(unsigned int a_rows, unsigned int a_columns, float value)
     free(b_matrix);
 }
 
-MatrixCUDA::MatrixCUDA(MatrixCUDA &mtx)
+MatrixCUDA::MatrixCUDA(Matrix &mtx)
 {
+    MatrixCUDA* _mtx = dynamic_cast<const MatrixCUDA*>(&move_mtx);
+    if (!_mtx) {
+        throw std::runtime_error("Data may be copied only on same device!");
+    }
+    rows = _mtx.get_rows();
+    columns = _mtx.get_columns();
+    size_t size = rows*columns*sizeof(float);
+    cudaMalloc( (void**)&matrix, size);
+    cudaMemcpy( matrix, _mtx.matrix, size, cudaMemcpyDeviceToDevice ); 
+}
+
+MatrixCUDA::MatrixCUDA(const Matrix &mtx)
+{
+    const MatrixCUDA* _mtx = dynamic_cast<const MatrixCUDA*>(&move_mtx);
+    if (!_mtx) {
+        throw std::runtime_error("Data may be copied only on same device!");
+    }
     rows = mtx.get_rows();
     columns = mtx.get_columns();
     size_t size = rows*columns*sizeof(float);
@@ -29,26 +44,22 @@ MatrixCUDA::MatrixCUDA(MatrixCUDA &mtx)
     cudaMemcpy( matrix, mtx.matrix, size, cudaMemcpyDeviceToDevice ); 
 }
 
-MatrixCUDA::MatrixCUDA(const MatrixCUDA &mtx)
+MatrixCUDA::MatrixCUDA(Matrix&& move_mtx)
 {
-    rows = mtx.get_rows();
-    columns = mtx.get_columns();
-    size_t size = rows*columns*sizeof(float);
-    cudaMalloc( (void**)&matrix, size);
-    cudaMemcpy( matrix, mtx.matrix, size, cudaMemcpyDeviceToDevice ); 
-}
+    const MatrixCUDA* _move_mtx = dynamic_cast<const MatrixCUDA*>(&move_mtx);
+    if (!_move_mtx) {
+        throw std::runtime_error("Data may be moved only on same device!");
+    }
 
-MatrixCUDA::MatrixCUDA(MatrixCUDA&& move_mtx)
-{
-    rows = move_mtx.get_rows();
-    columns = move_mtx.get_columns();
+    rows = _move_mtx.get_rows();
+    columns = _move_mtx.get_columns();
     if (this->matrix != nullptr)
         cudaFree(matrix);
 
-    matrix = move_mtx.matrix;
-    move_mtx.rows = 0;
-    move_mtx.columns = 0;
-    move_mtx.matrix = nullptr;
+    matrix = _move_mtx.matrix;
+    _move_mtx.rows = 0;
+    _move_mtx.columns = 0;
+    _move_mtx.matrix = nullptr;
 }
 
 MatrixCUDA::MatrixCUDA(float *mtx_arr, unsigned int rows, unsigned int columns): rows(rows), columns(columns)
@@ -65,8 +76,14 @@ MatrixCUDA::~MatrixCUDA()
         cudaFree(matrix);
 }
 
-MatrixCUDA MatrixCUDA::dot(const MatrixCUDA &mtx1, const MatrixCUDA &mtx2)
+MatrixCUDA MatrixCUDA::dot(const Matrix &mtx1, const Matrix &mtx2)
 {
+    const CpuMatrix* _mtx1 = dynamic_cast<const CpuMatrix*>(&mtx1);
+    const CpuMatrix* _mtx2 = dynamic_cast<const CpuMatrix*>(&mtx2);
+    if (!_mtx1 || !_mtx2) {
+        throw std::runtime_error("Matrix must be on same device!");
+    }
+
     if (mtx1.get_columns() != mtx2.get_rows())
         throw std::invalid_argument("Matrix multiplication error: columns of first matrix != rows of second matrix");
 
@@ -83,7 +100,7 @@ MatrixCUDA MatrixCUDA::dot(const MatrixCUDA &mtx1, const MatrixCUDA &mtx2)
     return l_matrix;
 }
 
-MatrixCUDA MatrixCUDA::operator* (float scalar)
+Matrix MatrixCUDA::operator* (float scalar)
 {
     MatrixCUDA out_mtx(*this);
     out_mtx *= scalar;
@@ -99,11 +116,10 @@ void MatrixCUDA::operator*= (float scalar)
     cudaDeviceSynchronize();
 }
 
-MatrixCUDA MatrixCUDA::operator* (MatrixCUDA &m2)
+Matrix MatrixCUDA::operator* (Matrix &m2)
 {
     if (rows != m2.rows || columns != m2.columns) {
-        std::cerr << "Matrix dimensions must match for addition!" << std::endl;
-        return MatrixCUDA(0,0);
+        throw std::invalid_argument("Matrix dimensions must match for multiplication!");
     }
     MatrixCUDA out_mtx(*this);
     out_mtx *= m2;
@@ -113,8 +129,7 @@ MatrixCUDA MatrixCUDA::operator* (MatrixCUDA &m2)
 void MatrixCUDA::operator*= (MatrixCUDA &m2)
 {
     if (rows != m2.rows || columns != m2.columns) {
-        std::cerr << "Matrix dimensions must match for addition!" << std::endl;
-        return;
+        throw std::invalid_argument("Matrix dimensions must match for multiplication!");
     }
     dim3 threadsPerBlock(TILE_SIZE, TILE_SIZE);
     dim3 BlockDim((columns + TILE_SIZE - 1) / TILE_SIZE, (rows + TILE_SIZE - 1) / TILE_SIZE);
@@ -125,8 +140,7 @@ void MatrixCUDA::operator*= (MatrixCUDA &m2)
 MatrixCUDA MatrixCUDA::operator+ (MatrixCUDA &m2)
 {
     if (rows != m2.rows || columns != m2.columns) {
-        std::cerr << "Matrix dimensions must match for addition!" << std::endl;
-        return MatrixCUDA(0,0);
+        throw std::invalid_argument("Matrix dimensions must match for addition!");
     }
     MatrixCUDA out_mtx(*this);
     out_mtx += m2;
@@ -136,8 +150,7 @@ MatrixCUDA MatrixCUDA::operator+ (MatrixCUDA &m2)
 void MatrixCUDA::operator+= (MatrixCUDA &m2)
 {
     if (rows != m2.rows || columns != m2.columns) {
-        std::cerr << "Matrix dimensions must match for addition!" << std::endl;
-        return;
+        throw std::invalid_argument("Matrix dimensions must match for addition!");
     }
     dim3 threadsPerBlock(TILE_SIZE, TILE_SIZE);
     dim3 BlockDim((columns + TILE_SIZE - 1) / TILE_SIZE, (rows + TILE_SIZE - 1) / TILE_SIZE);
@@ -148,8 +161,7 @@ void MatrixCUDA::operator+= (MatrixCUDA &m2)
 MatrixCUDA MatrixCUDA::operator- (MatrixCUDA& m2)
 {
      if (rows != m2.rows || columns != m2.columns) {
-        std::cerr << "Matrix dimensions must match for addition!" << std::endl;
-        return MatrixCUDA(0,0);
+        throw std::invalid_argument("Matrix dimensions must match for subtraction!");
     }
     MatrixCUDA out_mtx(*this);
     out_mtx -= m2;
@@ -159,8 +171,7 @@ MatrixCUDA MatrixCUDA::operator- (MatrixCUDA& m2)
 void MatrixCUDA::operator-= (MatrixCUDA &m2)
 {
     if (rows != m2.rows || columns != m2.columns) {
-        std::cerr << "Matrix dimensions must match for addition!" << std::endl;
-        return;
+        throw std::invalid_argument("Matrix dimensions must match for subtraction!");
     }
     dim3 threadsPerBlock(TILE_SIZE, TILE_SIZE);
     dim3 BlockDim((columns + TILE_SIZE - 1) / TILE_SIZE, (rows + TILE_SIZE - 1) / TILE_SIZE);
