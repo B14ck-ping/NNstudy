@@ -1,0 +1,155 @@
+# Abstract Factory Pattern for Matrix/Vector Creation
+
+# Абстрактные интерфейсы
+MathFactory: {
+  shape: class
+  style.fill: "#32bfcf"
+}
+Matrix: {
+  shape: class
+  style.fill: "#32bfcf"
+}
+Vector: {
+  shape: class
+  style.fill: "#32bfcf"
+}
+
+# Конкретные реализации (CPU)
+CpuFactory: {
+  shape: class
+  style.fill: "#32bfcf"
+}
+CpuMatrix: {
+  shape: class
+  style.fill: "#32bfcf"
+}
+CpuVector: {
+  shape: class
+  style.fill: "#32bfcf"
+}
+
+# Конкретные реализации (GPU)
+GpuFactory: {
+  shape: class
+  style.fill: "#32bfcf"
+}
+GpuMatrix: {
+  shape: class
+  style.fill: "#32bfcf"
+}
+GpuVector: {
+  shape: class
+  style.fill: "#32bfcf"
+}
+
+# Фасад + Simple Factory
+MathFactoryProvider: {
+  shape: class
+  style.fill: "#32bfcf"
+  + createMatrix(rows, cols, backend): Matrix*
+  + createVector(size, backend): Vector*
+}
+
+# Enum Backend
+Backend: {
+  CPU
+  GPU
+}
+
+# Связи между интерфейсами и реализациями
+CpuFactory -> MathFactory: {
+  style.stroke-dash: 5
+  target-arrowhead: {
+    style.filled: false
+  }
+}
+GpuFactory -> MathFactory: {
+  style.stroke-dash: 5
+  target-arrowhead: {
+    style.filled: false
+  }
+}
+
+CpuMatrix -> Matrix: {
+  target-arrowhead: {
+    style.filled: false
+  }
+}
+GpuMatrix -> Matrix: {
+  target-arrowhead: {
+    style.filled: false
+  }
+}
+
+CpuVector -> Vector: {
+  target-arrowhead: {
+    style.filled: false
+  }
+}
+GpuVector -> Vector: {
+  target-arrowhead: {
+    style.filled: false
+  }
+}
+
+CpuFactory -> CpuVector: {
+  style.stroke-dash: 5
+  target-arrowhead: {
+    shape: arrow
+    style.filled: false
+  }
+}
+
+CpuFactory -> CpuMatrix: {
+  style.stroke-dash: 5
+  target-arrowhead: {
+    shape: arrow
+    style.filled: false
+  }
+}
+
+GpuFactory -> GpuVector: {
+  style.stroke-dash: 5
+  target-arrowhead: {
+    shape: arrow
+    style.filled: false
+  }
+}
+
+GpuFactory -> GpuMatrix: {
+  style.stroke-dash: 5
+  target-arrowhead: {
+    shape: arrow
+    style.filled: false
+  }
+}
+
+MathFactoryProvider -> MathFactory: {
+  target-arrowhead: {
+    shape: arrow
+    style.filled: false
+  }
+}
+
+MathFactoryProvider -> Backend: {
+  target-arrowhead: {
+    shape: arrow
+    style.filled: false
+  }
+}
+
+# Методы фабрики
+MathFactory: {
+  createMatrix(): Matrix*
+  createVector(): Vector*
+}
+
+CpuFactory: {
+  createMatrix(): Matrix*
+  createVector(): Vector*
+}
+
+GpuFactory: {
+  createMatrix(): Matrix*
+  createVector(): Vector*
+}
