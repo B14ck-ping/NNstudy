@@ -13,10 +13,9 @@ public:
     MatrixCUDA(Matrix &);
     MatrixCUDA(const Matrix &);
     MatrixCUDA(Matrix &&);
-    MatrixCUDA(const Matrix &&);
     MatrixCUDA(float *mtx_arr, unsigned int rows, unsigned int columns);
     virtual ~MatrixCUDA();
-    virtual Matrix dot(const Matrix&, const Matrix&);
+    virtual Matrix* dot(const Matrix&, const Matrix&);
     virtual Matrix operator* (float);
     virtual void operator*= (float);
     virtual Matrix operator* (Matrix&);

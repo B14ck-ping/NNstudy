@@ -3,14 +3,25 @@
 #include <cstdint>
 #include <cstring>
 #include <new>
+#include <memory>
 
-MatrixCPU::MatrixCPU(unsigned int a_rows, unsigned int a_columns) : rows(a_rows), columns(a_columns)
+MatrixCPU::MatrixCPU(unsigned int a_rows, unsigned int a_columns)
 {
+    if (a_rows == 0 || a_columns == 0) {
+        throw std::invalid_argument("Matrix dimensions must be greater than zero.");
+    }
+    rows = a_rows;
+    columns = a_columns;
     matrix = (float*)malloc(rows*columns*sizeof(float));
 }
 
-MatrixCPU::MatrixCPU(unsigned int a_rows, unsigned int a_columns, float value) : rows(a_rows), columns(a_columns)
+MatrixCPU::MatrixCPU(unsigned int a_rows, unsigned int a_columns, float value)
 {
+    if (a_rows == 0 || a_columns == 0) {
+        throw std::invalid_argument("Matrix dimensions must be greater than zero.");
+    }
+    rows = a_rows;
+    columns = a_columns;
     matrix = (float*)malloc(rows*columns*sizeof(float));
     std::fill(matrix, matrix + rows*columns, value);
 }
@@ -27,8 +38,10 @@ MatrixCPU::MatrixCPU(const Matrix &mtx)
     std::memcpy(matrix, _mtx->matrix, sizeof(float)*columns*rows);
 }
 
-MatrixCPU::MatrixCPU(float *mtx_arr, unsigned int rows, unsigned int columns): rows(rows), columns(columns)
+MatrixCPU::MatrixCPU(float *mtx_arr, unsigned int rows, unsigned int columns)
 {
+    this->rows = rows;
+    this->columns = columns;
     matrix = (float*)malloc(rows*columns*sizeof(float));
     std::memcpy( matrix, mtx_arr, sizeof(float)*columns*rows);
 }
@@ -38,7 +51,7 @@ Matrix::~Matrix()
     free(matrix);
 }
 
-Matrix Matrix::dot(const Matrix &mtx1, const Matrix &mtx2)
+Matrix* MatrixCPU::dot(const Matrix &mtx1, const Matrix &mtx2)
 {
     if (mtx1.get_columns() != mtx2.get_rows())
         throw std::invalid_argument("Matrix multiplication error: columns of first matrix != rows of second matrix");
@@ -46,16 +59,16 @@ Matrix Matrix::dot(const Matrix &mtx1, const Matrix &mtx2)
     unsigned mtx1_rows = mtx1.get_rows();
     unsigned mtx1_col = mtx1.get_columns();
     unsigned int l_output_columns = mtx2.get_columns();
-    Matrix l_matrix(mtx1_rows, l_output_columns);
+    MatrixCPU* l_matrix = new MatrixCPU(mtx1_rows, l_output_columns);
     // Matrix mtx_2_t = mtx2.getTranspose();
 
     for (unsigned int k = 0; k < l_output_columns; k++){
         for (unsigned int i = 0; i < mtx1_rows; i++){
             float l_temp = 0.0;
             for(unsigned int j = 0; j < mtx1_col; j++){
-                l_temp += mtx1[i][j] * mtx2[j][k];
+                l_temp += mtx1.matrix[i*columns+j] * mtx2[j*columns+k];
             }
-            l_matrix[i][k] = l_temp;
+            (*l_matrix)[i][k] = l_temp;
         }
     }
 
@@ -112,11 +125,11 @@ Matrix Matrix::dot(const Matrix &mtx1, const Matrix &mtx2)
     return l_matrix;
 }
 
-Matrix Matrix::operator* (float scalar)
+Matrix* MatrixCPU::operator* (float scalar)
 {
-    Matrix temp(*this);
+    MatrixCPU* temp = new MatrixCPU(*this);
 
-    temp *= scalar;
+    *temp *= scalar;
 
     return temp;
 }
@@ -142,7 +155,7 @@ void Matrix::operator*= (float scalar)
     }
 }
 
-Matrix Matrix::operator* (Matrix &mtrx)
+Matrix* Matrix::operator* (Matrix &mtrx)
 {
     if (mtrx.columns != this->columns || mtrx.rows != this->rows)
         throw std::invalid_argument("Hadamard product error: matrices have different dimensions!");
@@ -173,11 +186,11 @@ void Matrix::operator*= (Matrix &mtrx)
         }
         if(col_even_idx != columns)
             for (unsigned int k = col_even_idx; k < columns; k++)
-                matrix[i*columns+k] *= mtrx[i][k];
+                matrix[i*columns+k] *= mtrx[i*columns+k];
     }  
 }
 
-Matrix Matrix::operator+ (Matrix &mtrx)
+Matrix* Matrix::operator+ (Matrix &mtrx)
 {
     if (mtrx.columns != this->columns || mtrx.rows != this->rows)
         throw std::invalid_argument("Matrix sum error: matrices have different dimensions!");
@@ -209,12 +222,12 @@ void Matrix::operator+= (Matrix &mtrx)
         }
         if(col_even_idx != columns)
             for (unsigned int k = col_even_idx; k < columns; k++)
-                matrix[i*columns+k] += mtrx[i][k];
+                matrix[i*columns+k] += mtrx[i*columns+k];
 
     }
 }
 
-Matrix Matrix::operator- (Matrix& mtrx)
+Matrix* Matrix::operator- (Matrix& mtrx)
 {
     if (mtrx.columns != this->columns || mtrx.rows != this->rows)
         throw std::invalid_argument("Matrix subtraction error: matrices have different dimensions!");
@@ -237,7 +250,7 @@ void Matrix::operator-= (Matrix &mtrx)
     }
 }
 
-Matrix Matrix::operator= (Matrix &m2)
+Matrix* Matrix::operator= (Matrix &m2)
 {
     this->rows = m2.rows;
     this->columns = m2.columns;
@@ -248,18 +261,37 @@ Matrix Matrix::operator= (Matrix &m2)
     matrix = (float*)malloc(rows*columns*sizeof(float));
     std::memcpy( matrix, m2.matrix, sizeof(float)*columns*rows);
 
-    return *this;
+    return this;
 }
 
-float* Matrix::operator[] (unsigned int idx)
+Matrix* Matrix::operator= (const Matrix &m2)
 {
-    return matrix + idx*columns;
+    this->rows = m2.rows;
+    this->columns = m2.columns;
+
+    if (this->matrix != nullptr)
+        free(matrix);
+
+    matrix = (float*)malloc(rows*columns*sizeof(float));
+    std::memcpy( matrix, m2.matrix, sizeof(float)*columns*rows);
+
+    return this;
 }
 
-const float* Matrix::operator[] (unsigned int idx) const
+Matrix* Matrix::operator= (Matrix &&m2)
 {
-    return matrix + idx*columns;
+    this->rows = m2.rows;
+    this->columns = m2.columns;
+
+    if (this->matrix != nullptr)
+        free(matrix);
+
+    matrix = m2.matrix;
+    m2.matrix = nullptr; // Avoid double free
+
+    return this;
 }
+
 
 float Matrix::getDeterminant() const
 {

@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # target_compile_definitions(neuralNet PUBLIC DUSE_CUDA)
 # Опции включения бэкендов
-option(USE_CUDA "Enable CUDA support" OFF)
+option(USE_CUDA "Enable CUDA support" ON)
 option(USE_OPENCL "Enable OpenCL support" OFF)
 
 # Добавляем сабмодули
